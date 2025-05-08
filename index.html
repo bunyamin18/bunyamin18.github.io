@@ -1,1 +1,237 @@
-gfsdgsd
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> Liste Oluştur</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Kütüphaneler -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-clipboard-list"></i>  Liste</h1>
+            <p>Öğelerinizi ekleyin ve paylaşın</p>
+        </header>
+
+        <div class="list-title-input">
+            <input type="text" id="listTitle" placeholder="Liste Başlığı (Örn: Alışveriş Listesi)">
+        </div>
+
+        <div class="list-container">
+            <div class="list-controls">
+                <input type="text" id="itemName" placeholder="Öğe adı">
+                <input type="text" id="itemAmount" placeholder="Miktar">
+                <input type="text" id="itemImageUrl" placeholder="Görsel URL (isteğe bağlı)">
+                <button onclick="addItem()"><i class="fas fa-plus"></i> Ekle</button>
+            </div>
+
+            <div class="list-items" id="itemsList">
+                <!-- Öğeler buraya eklenecek -->
+            </div>
+        </div>
+
+        <div class="actions">
+            <button onclick="createList()" class="primary"><i class="fas fa-qrcode"></i> Liste Oluştur & QR Al</button>
+        </div>
+
+        <div id="qrModal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeModal()">&times;</span>
+                <h2>Listeniz Hazır!</h2>
+                <div id="qrCode"></div>
+                <div id="listLink"></div>
+                <button onclick="copyLink()"><i class="fas fa-copy"></i> Linki Kopyala</button>
+                <p class="password-info">Düzenleme şifresi: <span id="editPassword"></span></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Config
+        const firebaseConfig = {
+            apiKey: "AIzaSyCGG5Ur3YpVxbtkjooMxE6r7RPuAmZoFRI",
+            authDomain: "anonim-not.firebaseapp.com",
+            projectId: "anonim-not",
+            storageBucket: "anonim-not.appspot.com",
+            messagingSenderId: "1020793266706",
+            appId: "1:1020793266706:web:bdaba147c8367a50dfaecb"
+        };
+        
+        // Firebase'i başlat
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        let items = [];
+
+        // QRCode kontrolü
+        function checkQRCodeLibrary() {
+            if (typeof QRCode === 'undefined') {
+                console.error("QRCode kütüphanesi yüklenemedi!");
+                return false;
+            }
+            return true;
+        }
+
+        function addItem() {
+            const name = document.getElementById("itemName").value;
+            const amount = document.getElementById("itemAmount").value;
+            const imageUrl = document.getElementById("itemImageUrl").value;
+
+            if (!name) {
+                alert("Lütfen öğe adı girin!");
+                return;
+            }
+
+            items.push({
+                name: name,
+                amount: amount || "1",
+                imageUrl: imageUrl || null
+            });
+
+            document.getElementById("itemName").value = "";
+            document.getElementById("itemAmount").value = "";
+            document.getElementById("itemImageUrl").value = "";
+            renderItems();
+        }
+
+        function renderItems() {
+            const listContainer = document.getElementById("itemsList");
+            listContainer.innerHTML = "";
+
+            items.forEach((item, index) => {
+                const itemElement = document.createElement("div");
+                itemElement.className = "item";
+                
+                let imageHtml = '';
+                if (item.imageUrl) {
+                    imageHtml = `<div class="item-image-container">
+                        <img src="${item.imageUrl}" class="item-image" onerror="this.style.display='none'">
+                    </div>`;
+                }
+                
+                itemElement.innerHTML = `
+                    ${imageHtml}
+                    <div class="item-details">
+                        <div class="item-name">${item.name}</div>
+                        <div class="item-amount">${item.amount}</div>
+                    </div>
+                    <button onclick="removeItem(${index})" class="remove-btn"><i class="fas fa-trash"></i></button>
+                `;
+                listContainer.appendChild(itemElement);
+            });
+        }
+
+        function removeItem(index) {
+            items.splice(index, 1);
+            renderItems();
+        }
+
+        async function createList() {
+            const title = document.getElementById("listTitle").value.trim();
+            
+            if (!title) {
+                alert("Lütfen liste başlığı girin!");
+                return;
+            }
+            
+            if (items.length === 0) {
+                alert("Lütfen en az bir öğe ekleyin!");
+                return;
+            }
+
+            try {
+                const listId = Math.random().toString(36).substring(2, 11);
+                const editPassword = Math.random().toString(36).substring(2, 8);
+                
+                await db.collection("lists").doc(listId).set({
+                    title: title,
+                    items: items,
+                    password: editPassword,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                // QR Kod Oluştur
+                const qrcodeDiv = document.getElementById("qrCode");
+                qrcodeDiv.innerHTML = "";
+                
+                const listUrl = `${window.location.origin}/view.html?id=${listId}&p=${editPassword}`;
+                
+                if (checkQRCodeLibrary()) {
+                    try {
+                        new QRCode(qrcodeDiv, {
+                            text: listUrl,
+                            width: 200,
+                            height: 200,
+                            colorDark: "#2c3e50",
+                            correctLevel: QRCode.CorrectLevel.H
+                        });
+                        console.log("QRCode başarıyla oluşturuldu");
+                    } catch (qrError) {
+                        console.error("QRCode oluşturma hatası:", qrError);
+                        showQRCodeFallback(qrcodeDiv, listUrl);
+                    }
+                } else {
+                    showQRCodeFallback(qrcodeDiv, listUrl);
+                }
+
+                document.getElementById("listLink").innerHTML = `
+                    <p>Liste linki:</p>
+                    <a href="${listUrl}" target="_blank">${urlShortener(listUrl)}</a>
+                `;
+
+                document.getElementById("editPassword").textContent = editPassword;
+                document.getElementById("qrModal").style.display = "block";
+            } catch (error) {
+                console.error("Firestore hatası:", error);
+                alert("Hata oluştu: " + error.message);
+            }
+        }
+
+        function showQRCodeFallback(container, url) {
+            container.innerHTML = `
+                <div class="qr-fallback">
+                    <p>QR kod oluşturulamadı</p>
+                    <p>Link: <a href="${url}" target="_blank">${urlShortener(url)}</a></p>
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(url)}" 
+                         alt="QR Code" style="margin-top:10px;">
+                </div>
+            `;
+        }
+
+        function urlShortener(url) {
+            return url.length > 50 ? url.substring(0, 50) + "..." : url;
+        }
+
+        function closeModal() {
+            document.getElementById("qrModal").style.display = "none";
+            items = [];
+            document.getElementById("listTitle").value = "";
+            renderItems();
+        }
+
+        function copyLink() {
+            const link = document.querySelector("#listLink a").href;
+            navigator.clipboard.writeText(link)
+                .then(() => alert("Link kopyalandı!"))
+                .catch(err => {
+                    console.error("Kopyalama hatası:", err);
+                    alert("Link kopyalanırken hata oluştu");
+                });
+        }
+
+        // Sayfa yüklendiğinde QRCode kontrolü yap
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!checkQRCodeLibrary()) {
+                console.warn("QRCode kütüphanesi yüklenmedi, alternatif yöntemler kullanılacak");
+            }
+        });
+    </script>
+</body>
+</html>
+</body>
+</html>
