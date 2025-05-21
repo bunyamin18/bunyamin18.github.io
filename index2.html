@@ -55,7 +55,7 @@
                 <i class="fas fa-qrcode text-3xl text-primary"></i>
                 <h1 class="text-2xl font-bold text-gray-800">QR Liste</h1>
             </div>
-            <nav class="hidden md:flex space-x-6">
+            <nav id="main-nav" class="hidden md:flex space-x-6">
                 <a href="#" class="text-gray-600 hover:text-primary transition-all" onclick="showPage('home')">Ana Sayfa</a>
                 <a href="#" class="text-gray-600 hover:text-primary transition-all" onclick="showPage('guide')">Kullanım Kılavuzu</a>
                 <a href="#" class="text-gray-600 hover:text-primary transition-all" onclick="showPage('contact')">İletişim</a>
@@ -208,13 +208,6 @@
                 <div class="mb-6">
                     <h2 class="text-3xl font-bold text-gray-800">Yeni Liste Oluştur</h2>
                     <p class="text-gray-600 mt-2">Liste adını belirleyin ve öğeler ekleyin.</p>
-                </div>
-                
-                <div class="bg-white p-6 rounded-xl shadow-md mb-8">
-                    <div class="mb-6">
-                        <label for="list-name" class="block text-gray-700 mb-2 font-medium">Liste Adı</label>
-                        <input type="text" id="list-name" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Alışveriş Listesi" required>
-                    </div>
                 </div>
                 
                 <div class="bg-white p-6 rounded-xl shadow-md mb-8">
@@ -662,10 +655,18 @@
     </div>
 
     <script>
-        // Firebase Configuration - Your Firebase project details go here
-        // These are global variables provided by the Canvas environment
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        // Firebase Configuration - Bu bilgiler doğrudan kod içine gömülmüştür.
+        // Canvas ortamında otomatik sağlanan değerler yerine, sizin belirttiğiniz değerler kullanılmaktadır.
+        const firebaseConfig = {
+            apiKey: "AIzaSyCGG5Ur3YpVxbtkjooMxE6r7RPuAmZoFRI",
+            authDomain: "anonim-not.firebaseapp.com",
+            projectId: "anonim-not",
+            storageBucket: "anonim-not.appspot.com",
+            messagingSenderId: "1020793266706",
+            appId: "1:1020793266706:web:bdaba147c8367a50dfaecb"
+        };
+        // Uygulama kimliği Firebase yapılandırmasından alınmıştır.
+        const appId = firebaseConfig.projectId; 
 
         // Initialize Firebase
         const app = firebase.initializeApp(firebaseConfig);
@@ -673,24 +674,173 @@
         const db = firebase.firestore();
         const storage = firebase.storage();
         
-        // Global Variables
-        let currentUser = null; // Current user information
-        let userId = null; // Current user ID (for Firestore paths)
-        let currentListId = null; // ID of the list currently being viewed
-        let currentListItems = JSON.parse(localStorage.getItem('draftItems')) || []; // Items for the new list being created (draft)
-        let editingListId = null; // ID of the list being edited
-        let editingListItems = []; // Items for the list being edited
-        let publicListId = null; // ID of the publicly viewed list
-        let publicListItems = []; // Items for the publicly viewed list
-        let qrScanner = null; // QR code scanner object
+        // Global Variables (declared first)
+        let currentUser = null;
+        let userId = null;
+        let currentListId = null;
+        let currentListItems = JSON.parse(localStorage.getItem('draftItems')) || [];
+        let editingListId = null;
+        let editingListItems = [];
+        let publicListId = null;
+        let publicListItems = [];
+        let qrScanner = null;
+        let alertTimeout; // Variable for alert timeout
 
         // Imgur Client ID (replace with your actual client ID)
         const IMGUR_CLIENT_ID = "895f27f2c7a23be"; // Your Imgur Client ID
 
-        // DOM Elements
+        // --- Core Functions (defined here to be globally available for inline onclicks) ---
+
+        // Show Page
+        function showPage(pageId) {
+            console.log(`Attempting to show page: ${pageId}`);
+            // Ensure pages are loaded before accessing them
+            const pages = document.querySelectorAll('.page'); // Re-query pages here to ensure it's always up-to-date
+            pages.forEach(page => {
+                if (page.id === pageId) {
+                    page.classList.remove('hidden');
+                    console.log(`Page ${pageId} shown.`);
+                } else {
+                    page.classList.add('hidden');
+                }
+            });
+            
+            const mobileMenu = document.getElementById('mobile-menu'); // Re-query here too
+            if (mobileMenu && !mobileMenu.classList.contains('hidden')) {
+                mobileMenu.classList.add('hidden');
+                console.log("Mobile menu hidden.");
+            }
+            
+            window.scrollTo(0, 0);
+
+            if (pageId === 'dashboard' && currentUser) {
+                loadUserLists();
+                console.log("Loading user lists for dashboard.");
+            } else if (pageId === 'createList') {
+                currentListItems = JSON.parse(localStorage.getItem('draftItems')) || [];
+                renderCurrentListItems();
+                const listNameInput = document.getElementById('list-name');
+                if (listNameInput) listNameInput.value = '';
+                const itemNameInput = document.getElementById('item-name');
+                if (itemNameInput) itemNameInput.value = '';
+                const itemQuantityInput = document.getElementById('item-quantity');
+                if (itemQuantityInput) itemQuantityInput.value = '';
+                const itemImageInput = document.getElementById('item-image');
+                if (itemImageInput) itemImageInput.value = '';
+                const imageErrorElement = document.getElementById('imageError');
+                if (imageErrorElement) imageErrorElement.textContent = '';
+                console.log("Resetting createList form and rendering draft items.");
+            }
+        }
+        
+        // Toggle Mobile Menu
+        function toggleMobileMenu() {
+            console.log("toggleMobileMenu called.");
+            const mobileMenu = document.getElementById('mobile-menu'); // Re-query here
+            mobileMenu.classList.toggle('hidden');
+            console.log("Mobile menu hidden status:", mobileMenu.classList.contains('hidden'));
+        }
+
+        // Logout Handler
+        async function logout() {
+            try {
+                await auth.signOut();
+                showAlert('Çıkış yapıldı!', 'success');
+                showPage('home');
+            } catch (error) {
+                showAlert('Çıkış yaparken bir hata oluştu: ' + error.message, 'error');
+            }
+        }
+
+        // List Deletion Confirmation
+        function confirmDeleteList(listId) {
+            if (confirm('Bu listeyi silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.')) {
+                deleteList(listId);
+            }
+        }
+
+        // Cancel Edit
+        function cancelEdit() {
+            editingListId = null;
+            editingListItems = [];
+            showPage('viewList');
+            displayListDetails(currentListId);
+        }
+
+        // Cancel Public Edit
+        function cancelPublicEdit() {
+            showPage('publicList');
+            loadPublicList(publicListId);
+        }
+
+        // View List by ID from scanner input
+        function viewListById() {
+            const listId = document.getElementById('list-id-input').value.trim();
+            if (listId) {
+                loadPublicList(listId);
+            } else {
+                showAlert('Lütfen bir Liste ID girin veya QR kod tarayın.', 'error');
+            }
+        }
+
+        // QR Scanner
+        function initQrScanner() {
+            showPage('qrScanner');
+            const qrVideo = document.getElementById('qr-video');
+            const qrScannerContainer = document.getElementById('qr-scanner-container');
+
+            if (qrScanner) {
+                qrScanner.destroy(); // Destroy previous scanner instance
+            }
+
+            qrScannerContainer.classList.remove('hidden'); // Show scanner container
+
+            // Check if environment is suitable for camera access
+            Html5Qrcode.getCameras().then(devices => {
+                if (devices && devices.length) {
+                    const cameraId = devices[0].id; // Use the first camera
+                    qrScanner = new Html5Qrcode("qr-video");
+                    qrScanner.start(
+                            cameraId, {
+                                fps: 10, // Frames per second
+                                qrbox: {
+                                    width: 250,
+                                    height: 250
+                                } // Scan area
+                            },
+                            (decodedText, decodedResult) => {
+                                // On successful scan
+                                if (decodedText) {
+                                    qrScanner.stop(); // Stop scanner
+                                    // Extract list ID from URL or use text directly
+                                    document.getElementById('list-id-input').value = decodedText.split('?list=')[1] || decodedText; 
+                                    showAlert('QR kod tarandı!', 'success');
+                                    qrScannerContainer.classList.add('hidden'); // Hide scanner container
+                                }
+                            },
+                            (errorMessage) => {
+                                // On error (optional)
+                                // console.log(`QR Scan Error: ${errorMessage}`);
+                            })
+                        .catch((err) => {
+                            showAlert('Kamera başlatılırken hata oluştu: ' + err, 'error');
+                            console.error("Error starting QR scanner:", err);
+                        });
+                } else {
+                    showAlert('Kamera bulunamadı.', 'error');
+                    qrScannerContainer.classList.add('hidden');
+                }
+            }).catch(err => {
+                showAlert('Kamera erişim hatası: ' + err, 'error');
+                qrScannerContainer.classList.add('hidden');
+            });
+        }
+
+        // --- End of Core Functions ---
+
+        // DOM Elements (These will be assigned when the script runs, after the functions above are defined)
         const mobileMenuButton = document.getElementById('mobile-menu-button');
-        const mobileMenu = document.getElementById('mobile-menu');
-        const pages = document.querySelectorAll('.page'); // All page divs
+        const mainNav = document.getElementById('main-nav');
         const loginForm = document.getElementById('login-form');
         const registerForm = document.getElementById('register-form');
         const addItemButton = document.getElementById('add-item');
@@ -706,35 +856,38 @@
         const updatePublicListButton = document.getElementById('update-public-list');
         const editPublicAddItemButton = document.getElementById('edit-public-add-item');
         const scanQrButton = document.getElementById('scan-qr-button');
-        const viewListButton = document.getElementById('view-list-button');
+        const viewListButtonElem = document.getElementById('view-list-button'); // Renamed to avoid conflict with function
         const contactForm = document.getElementById('contact-form');
         const alert = document.getElementById('alert');
         const alertIcon = document.getElementById('alert-icon');
         const alertMessage = document.getElementById('alert-message');
         const alertProgress = document.getElementById('alert-progress');
         const closeAlertButton = document.getElementById('close-alert');
-        
-        // Event Listeners
-        document.addEventListener('DOMContentLoaded', initApp); // Initialize the app when the page loads
-        mobileMenuButton.addEventListener('click', toggleMobileMenu); // Toggle mobile menu
-        loginForm.addEventListener('submit', handleLogin); // Handle login form
-        registerForm.addEventListener('submit', handleRegister); // Handle registration form
-        addItemButton.addEventListener('click', addItemToList); // Add new item
-        saveListButton.addEventListener('click', saveList); // Save the list
-        editListButton.addEventListener('click', editList); // Switch to edit list mode
-        updateListButton.addEventListener('click', updateList); // Update the edited list
-        closeQrModalButton.addEventListener('click', closeQrModal); // Close QR modal
-        modalDownloadQrButton.addEventListener('click', downloadQrCode); // Download QR code from modal
-        copyListIdButton.addEventListener('click', copyListId); // Copy List ID
-        downloadQrButton.addEventListener('click', downloadQrCode); // Download QR code from view page
-        editPublicListButton.addEventListener('click', editPublicList); // Switch to public list edit mode
-        updatePublicListButton.addEventListener('click', updatePublicList); // Update the edited public list
-        editPublicAddItemButton.addEventListener('click', addItemToPublicList); // Add item to public list
-        scanQrButton.addEventListener('click', initQrScanner); // Initialize QR scanner
-        viewListButton.addEventListener('click', viewListById); // View list by ID
-        document.getElementById('edit-add-item').addEventListener('click', addItemToEditList); // Add item on edit page
-        contactForm.addEventListener('submit', handleContactForm); // Handle contact form
-        closeAlertButton.addEventListener('click', hideAlert); // Close alert
+
+
+        // Event Listeners (These will be added after DOM elements are available)
+        // Ensure event listeners are added only if elements exist
+        document.addEventListener('DOMContentLoaded', initApp); 
+        if (mobileMenuButton) mobileMenuButton.addEventListener('click', toggleMobileMenu);
+        if (loginForm) loginForm.addEventListener('submit', handleLogin);
+        if (registerForm) registerForm.addEventListener('submit', handleRegister);
+        if (addItemButton) addItemButton.addEventListener('click', addItemToList);
+        if (saveListButton) saveListButton.addEventListener('click', saveList);
+        if (editListButton) editListButton.addEventListener('click', editList);
+        if (updateListButton) updateListButton.addEventListener('click', updateList);
+        if (closeQrModalButton) closeQrModalButton.addEventListener('click', closeQrModal);
+        if (modalDownloadQrButton) modalDownloadQrButton.addEventListener('click', downloadQrCode);
+        if (copyListIdButton) copyListIdButton.addEventListener('click', copyListId);
+        if (downloadQrButton) downloadQrButton.addEventListener('click', downloadQrCode);
+        if (editPublicListButton) editPublicListButton.addEventListener('click', editPublicList);
+        if (updatePublicListButton) updatePublicListButton.addEventListener('click', updatePublicList);
+        if (editPublicAddItemButton) editPublicAddItemButton.addEventListener('click', addItemToPublicList);
+        if (scanQrButton) scanQrButton.addEventListener('click', initQrScanner);
+        if (viewListButtonElem) viewListButtonElem.addEventListener('click', viewListById); // Use renamed element
+        const editAddItemElem = document.getElementById('edit-add-item');
+        if (editAddItemElem) editAddItemElem.addEventListener('click', addItemToEditList);
+        if (contactForm) contactForm.addEventListener('submit', handleContactForm);
+        if (closeAlertButton) closeAlertButton.addEventListener('click', hideAlert);
 
         // Show loading indicator (for image uploads)
         function showLoading() {
@@ -811,12 +964,19 @@
 
         // Initialize the Application
         async function initApp() {
+            console.log("initApp called.");
             // Authenticate with Firebase using the custom token if available, otherwise sign in anonymously
             try {
+                // Canvas ortamında __initial_auth_token sağlanır. Kendi sunucunuzda bu değişken tanımsız olacaktır.
+                // Bu durumda anonim olarak giriş yapmayı deneyecektir.
                 if (typeof __initial_auth_token !== 'undefined') {
+                    console.log("Attempting Firebase signInWithCustomToken...");
                     await auth.signInWithCustomToken(__initial_auth_token);
+                    console.log("Firebase signInWithCustomToken successful.");
                 } else {
+                    console.log("Attempting Firebase signInAnonymously...");
                     await auth.signInAnonymously();
+                    console.log("Firebase signInAnonymously successful.");
                 }
             } catch (error) {
                 console.error("Firebase authentication failed:", error);
@@ -825,11 +985,14 @@
 
             // Listen for user authentication state changes
             auth.onAuthStateChanged(user => {
+                console.log("onAuthStateChanged fired. User:", user ? user.uid : "null");
                 currentUser = user; // Set current user
                 userId = user ? user.uid : crypto.randomUUID(); // Set userId based on auth state
+                console.log("Current userId:", userId);
                 updateAuthUI(); // Update UI based on authentication status
                 
                 if (user) {
+                    console.log("User is logged in, loading user lists.");
                     loadUserLists(); // Load user lists if logged in
                 }
                 
@@ -838,8 +1001,10 @@
                 const listId = urlParams.get('list');
                 
                 if (listId) {
+                    console.log(`List ID found in URL: ${listId}. Loading public list.`);
                     loadPublicList(listId); // Load public list if list ID is present
                 } else {
+                    console.log("No list ID in URL. Showing home page.");
                     showPage('home'); // Otherwise, show home page
                 }
             });
@@ -848,58 +1013,62 @@
             renderCurrentListItems(); // Render any draft items from localStorage
         }
         
-        // Toggle Mobile Menu
-        function toggleMobileMenu() {
-            mobileMenu.classList.toggle('hidden');
-        }
-        
-        // Show Page
-        function showPage(pageId) {
-            pages.forEach(page => {
-                page.classList.add('hidden'); // Hide all pages
-            });
-            
-            document.getElementById(pageId).classList.remove('hidden'); // Show the requested page
-            
-            // Close mobile menu if open
-            if (mobileMenu && !mobileMenu.classList.contains('hidden')) {
-                mobileMenu.classList.add('hidden');
-            }
-            
-            // Scroll to top of the page
-            window.scrollTo(0, 0);
-
-            // Additional actions for specific page loads
-            if (pageId === 'dashboard' && currentUser) {
-                loadUserLists(); // Reload user lists when navigating to Dashboard
-            } else if (pageId === 'createList') {
-                currentListItems = JSON.parse(localStorage.getItem('draftItems')) || []; // Load draft items
-                renderCurrentListItems(); // Render the draft items
-                document.getElementById('list-name').value = ''; // Clear list name
-                document.getElementById('item-name').value = '';
-                document.getElementById('item-quantity').value = '';
-                document.getElementById('item-image').value = '';
-                document.getElementById('imageError').textContent = '';
-            }
-        }
-        
         // Update UI based on Authentication Status
         function updateAuthUI() {
-            const authHideElements = document.querySelectorAll('.auth-hide'); // Elements to hide if not logged in
-            const authShowElements = document.querySelectorAll('.auth-show'); // Elements to show if logged in
+            console.log("updateAuthUI called. currentUser:", currentUser ? currentUser.uid : "null (not logged in)");
+            
+            // Get navigation elements
+            const mainNav = document.getElementById('main-nav');
+            const mobileMenu = document.getElementById('mobile-menu');
+
+            // Get all auth-dependent elements
+            const authHideElements = document.querySelectorAll('.auth-hide');
+            const authShowElements = document.querySelectorAll('.auth-show');
             
             if (currentUser) {
-                authHideElements.forEach(el => el.classList.add('hidden'));
-                authShowElements.forEach(el => el.classList.remove('hidden'));
+                console.log("User is logged in. Hiding auth-hide elements, showing auth-show elements.");
+                
+                // Show desktop nav and hide mobile nav if user is logged in
+                if (mainNav) {
+                    mainNav.classList.remove('hidden'); // Ensure main nav is visible
+                    mainNav.classList.add('md:flex'); // Ensure it's flex on medium screens and up
+                }
+                // Mobile menu's visibility is controlled by the hamburger button, not directly by auth state,
+                // but its *contents* (auth-hide/show links) are.
+                // So, no change needed for mobileMenu's `hidden` class here, only for its children.
+
+                authHideElements.forEach(el => {
+                    el.classList.add('hidden');
+                    console.log(`Element with class auth-hide hidden: ${el.tagName} ${el.textContent.trim().substring(0, 20)}...`);
+                });
+                authShowElements.forEach(el => {
+                    el.classList.remove('hidden');
+                    console.log(`Element with class auth-show shown: ${el.tagName} ${el.textContent.trim().substring(0, 20)}...`);
+                });
             } else {
-                authHideElements.forEach(el => el.classList.remove('hidden'));
-                authShowElements.forEach(el => el.classList.add('hidden'));
+                console.log("User is NOT logged in. Showing auth-hide elements, hiding auth-show elements.");
+                
+                // Hide desktop nav and show mobile nav if user is not logged in
+                if (mainNav) {
+                    mainNav.classList.add('hidden'); // Hide main nav
+                    mainNav.classList.remove('md:flex'); // Remove flex property
+                }
+                // Mobile menu's visibility is controlled by the hamburger button, not directly by auth state,
+                // but its *contents* (auth-hide/show links) are.
+                // So, no change needed for mobileMenu's `hidden` class here, only for its children.
+
+                authHideElements.forEach(el => {
+                    el.classList.remove('hidden');
+                    console.log(`Element with class auth-hide shown: ${el.tagName} ${el.textContent.trim().substring(0, 20)}...`);
+                });
+                authShowElements.forEach(el => {
+                    el.classList.add('hidden');
+                    console.log(`Element with class auth-show hidden: ${el.tagName} ${el.textContent.trim().substring(0, 20)}...`);
+                });
             }
         }
         
         // Show Alert Message
-        let alertTimeout; // Variable for alert timeout
-
         function showAlert(message, type = 'success') {
             clearTimeout(alertTimeout); // Clear existing timeout
 
@@ -972,17 +1141,6 @@
                 registerError.textContent = 'Kayıt başarısız: ' + error.message; // Show error message
                 registerError.classList.remove('hidden');
                 showAlert('Kayıt başarısız!', 'error');
-            }
-        }
-
-        // Logout Handler
-        async function logout() {
-            try {
-                await auth.signOut(); // Log out from Firebase
-                showAlert('Çıkış yapıldı!', 'success');
-                showPage('home'); // Redirect to Home page
-            } catch (error) {
-                showAlert('Çıkış yaparken bir hata oluştu: ' + error.message, 'error');
             }
         }
 
@@ -1404,14 +1562,6 @@
             }
         }
 
-        // Cancel Edit
-        function cancelEdit() {
-            editingListId = null;
-            editingListItems = [];
-            showPage('viewList'); // Return to view page
-            displayListDetails(currentListId); // Show the current list again
-        }
-
         // List Deletion Confirmation
         function confirmDeleteList(listId) {
             // Using a simple confirmation window. A more advanced modal can be used.
@@ -1543,7 +1693,7 @@
             publicItemList.innerHTML = '';
 
             try {
-                // Public lists are stored under /artifacts/{appId}/public/data/lists
+                // Public lists are stored under /artifacts/${appId}/public/data/lists
                 const listDoc = await db.collection(`artifacts/${appId}/public/data/lists`).doc(listId).get(); // Get list from Firestore
                 if (!listDoc.exists) {
                     showAlert('Paylaşılan liste bulunamadı.', 'error');
@@ -1582,7 +1732,7 @@
         // Toggle Public Item Checked Status
         async function togglePublicItemChecked(listId, itemName, isChecked) {
             try {
-                // Public lists are stored under /artifacts/{appId}/public/data/lists
+                // Public lists are stored under /artifacts/${appId}/public/data/lists
                 const listDoc = await db.collection(`artifacts/${appId}/public/data/lists`).doc(listId).get();
                 if (!listDoc.exists) return;
 
@@ -1745,75 +1895,6 @@
             }
         }
 
-        // Cancel Public Edit
-        function cancelPublicEdit() {
-            showPage('publicList');
-            loadPublicList(publicListId);
-        }
-
-        // QR Scanner
-        function initQrScanner() {
-            showPage('qrScanner');
-            const qrVideo = document.getElementById('qr-video');
-            const qrScannerContainer = document.getElementById('qr-scanner-container');
-
-            if (qrScanner) {
-                qrScanner.destroy(); // Destroy previous scanner instance
-            }
-
-            qrScannerContainer.classList.remove('hidden'); // Show scanner container
-
-            // Check if environment is suitable for camera access
-            Html5Qrcode.getCameras().then(devices => {
-                if (devices && devices.length) {
-                    const cameraId = devices[0].id; // Use the first camera
-                    qrScanner = new Html5Qrcode("qr-video");
-                    qrScanner.start(
-                            cameraId, {
-                                fps: 10, // Frames per second
-                                qrbox: {
-                                    width: 250,
-                                    height: 250
-                                } // Scan area
-                            },
-                            (decodedText, decodedResult) => {
-                                // On successful scan
-                                if (decodedText) {
-                                    qrScanner.stop(); // Stop scanner
-                                    // Extract list ID from URL or use text directly
-                                    document.getElementById('list-id-input').value = decodedText.split('?list=')[1] || decodedText; 
-                                    showAlert('QR kod tarandı!', 'success');
-                                    qrScannerContainer.classList.add('hidden'); // Hide scanner container
-                                }
-                            },
-                            (errorMessage) => {
-                                // On error (optional)
-                                // console.log(`QR Scan Error: ${errorMessage}`);
-                            })
-                        .catch((err) => {
-                            showAlert('Kamera başlatılırken hata oluştu: ' + err, 'error');
-                            console.error("Error starting QR scanner:", err);
-                        });
-                } else {
-                    showAlert('Kamera bulunamadı.', 'error');
-                    qrScannerContainer.classList.add('hidden');
-                }
-            }).catch(err => {
-                showAlert('Kamera erişim hatası: ' + err, 'error');
-                qrScannerContainer.classList.add('hidden');
-            });
-        }
-
-        // View List by ID from scanner input
-        function viewListById() {
-            const listId = document.getElementById('list-id-input').value.trim();
-            if (listId) {
-                loadPublicList(listId); // Load the public list
-            } else {
-                showAlert('Lütfen bir Liste ID girin veya QR kod tarayın.', 'error');
-            }
-        }
-
         // Contact Form Handler
         async function handleContactForm(e) {
             e.preventDefault();
@@ -1823,16 +1904,16 @@
             const message = document.getElementById('contact-message').value;
 
             try {
-                // Normally you would send this data to a backend server
-                // or use a service like EmailJS, Formspree.
-                // For now, we'll just simulate success.
-                console.log('Contact Form Data:', { name, email, subject, message });
+                // Bu verileri normalde bir arka uç sunucusuna gönderirsiniz
+                // veya EmailJS, Formspree gibi bir hizmet kullanırsınız.
+                // Şimdilik sadece başarıyı simüle edeceğiz.
+                console.log('İletişim Formu Verileri:', { name, email, subject, message });
 
                 showAlert('Mesajınız başarıyla gönderildi!', 'success');
-                contactForm.reset(); // Clear the form
+                contactForm.reset(); // Formu temizle
             } catch (error) {
                 showAlert('Mesaj gönderilirken bir hata oluştu: ' + error.message, 'error');
-                console.error("Contact form error: ", error);
+                console.error("İletişim formu hatası: ", error);
             }
         }
     </script>
