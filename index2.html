@@ -1,0 +1,1725 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Liste Oluştur QR Kod Paylaş</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <style>
+        /* Ana renk tanımlamaları */
+        .bg-primary {
+            background-color: #4f46e5;
+        }
+        .text-primary {
+            color: #4f46e5;
+        }
+        .border-primary {
+            border-color: #4f46e5;
+        }
+        .hover-bg-primary:hover {
+            background-color: #4338ca;
+        }
+        /* Genel geçişler */
+        .transition-all {
+            transition: all 0.3s ease;
+        }
+        /* Gizli öğeler için */
+        .hidden {
+            display: none;
+        }
+        /* Maksimum yükseklik sınırlaması */
+        .max-h-96 {
+            max-height: 24rem;
+        }
+        /* QR kod tarayıcı video boyutu */
+        #qr-video {
+            width: 100%;
+            max-width: 400px; /* Maksimum genişlik */
+            height: auto;
+            border-radius: 0.5rem;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans">
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-storage-compat.js"></script>
+
+    <header class="bg-white shadow-md">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fas fa-qrcode text-3xl text-primary"></i>
+                <h1 class="text-2xl font-bold text-gray-800">QR Liste</h1>
+            </div>
+            <nav class="hidden md:flex space-x-6">
+                <a href="#" class="text-gray-600 hover:text-primary transition-all" onclick="showPage('home')">Ana Sayfa</a>
+                <a href="#" class="text-gray-600 hover:text-primary transition-all" onclick="showPage('guide')">Kullanım Kılavuzu</a>
+                <a href="#" class="text-gray-600 hover:text-primary transition-all" onclick="showPage('contact')">İletişim</a>
+                <a href="#" class="text-gray-600 hover:text-primary transition-all auth-hide" onclick="showPage('login')">Giriş Yap</a>
+                <a href="#" class="text-gray-600 hover:text-primary transition-all auth-hide" onclick="showPage('register')">Kayıt Ol</a>
+                <a href="#" class="text-gray-600 hover:text-primary transition-all auth-show hidden" onclick="showPage('dashboard')">Listelerim</a>
+                <a href="#" class="text-gray-600 hover:text-primary transition-all auth-show hidden" onclick="logout()">Çıkış Yap</a>
+            </nav>
+            <button class="md:hidden text-gray-600" id="mobile-menu-button">
+                <i class="fas fa-bars text-2xl"></i>
+            </button>
+        </div>
+        <div class="md:hidden hidden" id="mobile-menu">
+            <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-white shadow-md">
+                <a href="#" class="block px-3 py-2 text-gray-600 hover:text-primary transition-all" onclick="showPage('home')">Ana Sayfa</a>
+                <a href="#" class="block px-3 py-2 text-gray-600 hover:text-primary transition-all" onclick="showPage('guide')">Kullanım Kılavuzu</a>
+                <a href="#" class="block px-3 py-2 text-gray-600 hover:text-primary transition-all" onclick="showPage('contact')">İletişim</a>
+                <a href="#" class="block px-3 py-2 text-gray-600 hover:text-primary transition-all auth-hide" onclick="showPage('login')">Giriş Yap</a>
+                <a href="#" class="block px-3 py-2 text-gray-600 hover:text-primary transition-all auth-hide" onclick="showPage('register')">Kayıt Ol</a>
+                <a href="#" class="block px-3 py-2 text-gray-600 hover:text-primary transition-all auth-show hidden" onclick="showPage('dashboard')">Listelerim</a>
+                <a href="#" class="block px-3 py-2 text-gray-600 hover:text-primary transition-all auth-show hidden" onclick="logout()">Çıkış Yap</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto p-4 mt-8">
+        <div id="home" class="page">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl font-bold text-gray-800 mb-4">Liste Oluştur, QR Kod ile Paylaş</h2>
+                <p class="text-xl text-gray-600 max-w-2xl mx-auto">
+                    İhtiyaç listelerinizi kolayca oluşturun, QR kod ile paylaşın ve güncelleyin.
+                </p>
+                <div class="mt-10">
+                    <button onclick="showPage('login')" class="bg-primary text-white px-8 py-3 rounded-lg shadow-lg hover-bg-primary transition-all auth-hide">
+                        Hemen Başla
+                    </button>
+                    <button onclick="showPage('createList')" class="bg-primary text-white px-8 py-3 rounded-lg shadow-lg hover-bg-primary transition-all auth-show hidden">
+                        Liste Oluştur
+                    </button>
+                </div>
+            </div>
+            
+            <div class="grid md:grid-cols-3 gap-8 mt-12">
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <div class="text-primary text-4xl mb-4">
+                        <i class="fas fa-pencil-alt"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">Kolay Liste Oluşturma</h3>
+                    <p class="text-gray-600">
+                        İhtiyaçlarınızı, miktarlarını ve görselleri ekleyerek detaylı listeler oluşturun.
+                    </p>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <div class="text-primary text-4xl mb-4">
+                        <i class="fas fa-qrcode"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">QR Kod Paylaşımı</h3>
+                    <p class="text-gray-600">
+                        Oluşturduğunuz listeleri QR kod aracılığıyla anında paylaşabilirsiniz.
+                    </p>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <div class="text-primary text-4xl mb-4">
+                        <i class="fas fa-edit"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">Kolay Düzenleme</h3>
+                    <p class="text-gray-600">
+                        QR kodu okutarak listenizi istediğiniz zaman düzenleyebilirsiniz.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div id="login" class="page hidden">
+            <div class="max-w-md mx-auto bg-white p-8 rounded-xl shadow-md">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">Giriş Yap</h2>
+                <div id="login-error" class="bg-red-100 text-red-600 p-3 rounded mb-4 hidden"></div>
+                <form id="login-form">
+                    <div class="mb-4">
+                        <label for="login-email" class="block text-gray-700 mb-2">E-posta Adresi</label>
+                        <input type="email" id="login-email" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" required>
+                    </div>
+                    <div class="mb-6">
+                        <label for="login-password" class="block text-gray-700 mb-2">Şifre</label>
+                        <input type="password" id="login-password" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" required>
+                    </div>
+                    <button type="submit" class="w-full bg-primary text-white py-2 rounded-lg hover-bg-primary transition-all">
+                        Giriş Yap
+                    </button>
+                </form>
+                <div class="mt-4 text-center">
+                    <p class="text-gray-600">
+                        Hesabınız yok mu? 
+                        <a href="#" class="text-primary hover:underline" onclick="showPage('register')">Kayıt Ol</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div id="register" class="page hidden">
+            <div class="max-w-md mx-auto bg-white p-8 rounded-xl shadow-md">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">Hesap Oluştur</h2>
+                <div id="register-error" class="bg-red-100 text-red-600 p-3 rounded mb-4 hidden"></div>
+                <form id="register-form">
+                    <div class="mb-4">
+                        <label for="register-name" class="block text-gray-700 mb-2">Ad Soyad</label>
+                        <input type="text" id="register-name" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" required>
+                    </div>
+                    <div class="mb-4">
+                        <label for="register-email" class="block text-gray-700 mb-2">E-posta Adresi</label>
+                        <input type="email" id="register-email" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" required>
+                    </div>
+                    <div class="mb-6">
+                        <label for="register-password" class="block text-gray-700 mb-2">Şifre</label>
+                        <input type="password" id="register-password" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" required>
+                    </div>
+                    <button type="submit" class="w-full bg-primary text-white py-2 rounded-lg hover-bg-primary transition-all">
+                        Kayıt Ol
+                    </button>
+                </form>
+                <div class="mt-4 text-center">
+                    <p class="text-gray-600">
+                        Zaten hesabınız var mı? 
+                        <a href="#" class="text-primary hover:underline" onclick="showPage('login')">Giriş Yap</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div id="dashboard" class="page hidden">
+            <div class="mb-6 flex justify-between items-center">
+                <h2 class="text-3xl font-bold text-gray-800">Listelerim</h2>
+                <button onclick="showPage('createList')" class="bg-primary text-white px-4 py-2 rounded-lg shadow hover-bg-primary transition-all flex items-center">
+                    <i class="fas fa-plus mr-2"></i> Yeni Liste Oluştur
+                </button>
+            </div>
+            
+            <div id="qr-list-counter" class="mb-4 text-gray-600"></div>
+            
+            <div id="user-lists" class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="text-center text-gray-500 col-span-full py-10" id="no-lists-message">
+                    <i class="fas fa-clipboard-list text-5xl mb-4"></i>
+                    <p class="text-xl">Henüz liste oluşturmadınız.</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="createList" class="page hidden">
+            <div class="max-w-4xl mx-auto">
+                <div class="mb-6">
+                    <h2 class="text-3xl font-bold text-gray-800">Yeni Liste Oluştur</h2>
+                    <p class="text-gray-600 mt-2">Liste adını belirleyin ve öğeler ekleyin.</p>
+                </div>
+                
+                <div class="bg-white p-6 rounded-xl shadow-md mb-8">
+                    <div class="mb-6">
+                        <label for="list-name" class="block text-gray-700 mb-2 font-medium">Liste Adı</label>
+                        <input type="text" id="list-name" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Alışveriş Listesi" required>
+                    </div>
+                </div>
+                
+                <div class="bg-white p-6 rounded-xl shadow-md mb-8">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Yeni Öğe Ekle</h3>
+                    
+                    <div class="grid md:grid-cols-3 gap-4 mb-4">
+                        <div>
+                            <label for="item-name" class="block text-gray-700 mb-2">Öğe İsmi</label>
+                            <input type="text" id="item-name" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Elma">
+                        </div>
+                        <div>
+                            <label for="item-quantity" class="block text-gray-700 mb-2">Öğe Miktarı</label>
+                            <input type="text" id="item-quantity" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" placeholder="2 kg">
+                        </div>
+                        <div>
+                            <label for="item-image" class="block text-gray-700 mb-2">Resim (İsteğe Bağlı)</label>
+                            <input type="file" id="item-image" accept="image/*" class="w-full px-4 py-1.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+                        </div>
+                    </div>
+                    
+                    <button id="add-item" class="bg-primary text-white px-4 py-2 rounded-lg shadow hover-bg-primary transition-all">
+                        <i class="fas fa-plus mr-2"></i> Öğe Ekle
+                    </button>
+                </div>
+                
+                <div class="bg-white p-6 rounded-xl shadow-md mb-8">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Liste Öğeleri</h3>
+                    
+                    <div id="item-list" class="max-h-96 overflow-y-auto">
+                        <div id="empty-list-message" class="text-center py-8 text-gray-500">
+                            <i class="fas fa-clipboard text-4xl mb-3"></i>
+                            <p>Henüz öğe eklemediniz.</p>
+                        </div>
+                        </div>
+                </div>
+                
+                <div class="flex justify-end">
+                    <button id="save-list" class="bg-primary text-white px-6 py-3 rounded-lg shadow-lg hover-bg-primary transition-all">
+                        <i class="fas fa-save mr-2"></i> Kaydet ve QR Kod Oluştur
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="viewList" class="page hidden">
+            <div class="max-w-4xl mx-auto">
+                <div class="mb-6 flex items-center">
+                    <button onclick="showPage('dashboard')" class="text-gray-600 hover:text-primary mr-4">
+                        <i class="fas fa-arrow-left text-lg"></i>
+                    </button>
+                    <h2 class="text-3xl font-bold text-gray-800" id="view-list-name">Liste Detayları</h2>
+                </div>
+                
+                <div class="grid md:grid-cols-3 gap-6">
+                    <div class="md:col-span-2">
+                        <div class="bg-white p-6 rounded-xl shadow-md mb-6">
+                            <h3 class="text-xl font-bold text-gray-800 mb-4">Liste Öğeleri</h3>
+                            
+                            <div id="view-item-list" class="max-h-96 overflow-y-auto">
+                                </div>
+                        </div>
+                        
+                        <div class="flex justify-end">
+                            <button id="edit-list" class="bg-primary text-white px-6 py-3 rounded-lg shadow-lg hover-bg-primary transition-all">
+                                <i class="fas fa-edit mr-2"></i> Listeyi Düzenle
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <div class="bg-white p-6 rounded-xl shadow-md">
+                            <h3 class="text-xl font-bold text-gray-800 mb-4">QR Kod</h3>
+                            <div id="qrcode-container" class="flex justify-center mb-4"></div>
+                            <button id="download-qr" class="w-full bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 transition-all flex items-center justify-center">
+                                <i class="fas fa-download mr-2"></i> QR Kodu İndir
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="editList" class="page hidden">
+            <div class="max-w-4xl mx-auto">
+                <div class="mb-6">
+                    <h2 class="text-3xl font-bold text-gray-800">Listeyi Düzenle</h2>
+                    <p class="text-gray-600 mt-2" id="edit-list-id"></p>
+                </div>
+                
+                <div class="bg-white p-6 rounded-xl shadow-md mb-8">
+                    <div class="mb-6">
+                        <label for="edit-list-name" class="block text-gray-700 mb-2 font-medium">Liste Adı</label>
+                        <input type="text" id="edit-list-name" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" required>
+                    </div>
+                </div>
+                
+                <div class="bg-white p-6 rounded-xl shadow-md mb-8">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Yeni Öğe Ekle</h3>
+                    
+                    <div class="grid md:grid-cols-3 gap-4 mb-4">
+                        <div>
+                            <label for="edit-item-name" class="block text-gray-700 mb-2">Öğe İsmi</label>
+                            <input type="text" id="edit-item-name" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Elma">
+                        </div>
+                        <div>
+                            <label for="edit-item-quantity" class="block text-gray-700 mb-2">Öğe Miktarı</label>
+                            <input type="text" id="edit-item-quantity" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" placeholder="2 kg">
+                        </div>
+                        <div>
+                            <label for="edit-item-image" class="block text-gray-700 mb-2">Resim (İsteğe Bağlı)</label>
+                            <input type="file" id="edit-item-image" accept="image/*" class="w-full px-4 py-1.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+                        </div>
+                    </div>
+                    
+                    <button id="edit-add-item" class="bg-primary text-white px-4 py-2 rounded-lg shadow hover-bg-primary transition-all">
+                        <i class="fas fa-plus mr-2"></i> Öğe Ekle
+                    </button>
+                </div>
+                
+                <div class="bg-white p-6 rounded-xl shadow-md mb-8">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Liste Öğeleri</h3>
+                    
+                    <div id="edit-item-list" class="max-h-96 overflow-y-auto">
+                        </div>
+                </div>
+                
+                <div class="flex justify-between">
+                    <button onclick="cancelEdit()" class="bg-gray-200 text-gray-800 px-6 py-3 rounded-lg shadow-lg hover:bg-gray-300 transition-all">
+                        <i class="fas fa-times mr-2"></i> İptal
+                    </button>
+                    <button id="update-list" class="bg-primary text-white px-6 py-3 rounded-lg shadow-lg hover-bg-primary transition-all">
+                        <i class="fas fa-save mr-2"></i> Değişiklikleri Kaydet
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="publicList" class="page hidden">
+            <div class="max-w-4xl mx-auto">
+                <div class="mb-6">
+                    <h2 class="text-3xl font-bold text-gray-800" id="public-list-name">Liste</h2>
+                    <p class="text-gray-600 mt-2" id="public-list-id"></p>
+                </div>
+                
+                <div class="bg-white p-6 rounded-xl shadow-md mb-8">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Liste Öğeleri</h3>
+                    
+                    <div id="public-item-list" class="max-h-96 overflow-y-auto">
+                        </div>
+                </div>
+                
+                <div class="flex justify-end">
+                    <button id="edit-public-list" class="bg-primary text-white px-6 py-3 rounded-lg shadow-lg hover-bg-primary transition-all">
+                        <i class="fas fa-edit mr-2"></i> Listeyi Düzenle
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="editPublicList" class="page hidden">
+            <div class="max-w-4xl mx-auto">
+                <div class="mb-6">
+                    <h2 class="text-3xl font-bold text-gray-800">Listeyi Düzenle</h2>
+                    <p class="text-gray-600 mt-2" id="edit-public-list-id"></p>
+                </div>
+                
+                <div class="bg-white p-6 rounded-xl shadow-md mb-8">
+                    <div class="mb-6">
+                        <label for="edit-public-list-name" class="block text-gray-700 mb-2 font-medium">Liste Adı</label>
+                        <input type="text" id="edit-public-list-name" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" required>
+                    </div>
+                </div>
+                
+                <div class="bg-white p-6 rounded-xl shadow-md mb-8">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Yeni Öğe Ekle</h3>
+                    
+                    <div class="grid md:grid-cols-3 gap-4 mb-4">
+                        <div>
+                            <label for="edit-public-item-name" class="block text-gray-700 mb-2">Öğe İsmi</label>
+                            <input type="text" id="edit-public-item-name" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Elma">
+                        </div>
+                        <div>
+                            <label for="edit-public-item-quantity" class="block text-gray-700 mb-2">Öğe Miktarı</label>
+                            <input type="text" id="edit-public-item-quantity" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" placeholder="2 kg">
+                        </div>
+                        <div>
+                            <label for="edit-public-item-image" class="block text-gray-700 mb-2">Resim (İsteğe Bağlı)</label>
+                            <input type="file" id="edit-public-item-image" accept="image/*" class="w-full px-4 py-1.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+                        </div>
+                    </div>
+                    
+                    <button id="edit-public-add-item" class="bg-primary text-white px-4 py-2 rounded-lg shadow hover-bg-primary transition-all">
+                        <i class="fas fa-plus mr-2"></i> Öğe Ekle
+                    </button>
+                </div>
+                
+                <div class="bg-white p-6 rounded-xl shadow-md mb-8">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Liste Öğeleri</h3>
+                    
+                    <div id="edit-public-item-list" class="max-h-96 overflow-y-auto">
+                        </div>
+                </div>
+                
+                <div class="flex justify-between">
+                    <button onclick="cancelPublicEdit()" class="bg-gray-200 text-gray-800 px-6 py-3 rounded-lg shadow-lg hover:bg-gray-300 transition-all">
+                        <i class="fas fa-times mr-2"></i> İptal
+                    </button>
+                    <button id="update-public-list" class="bg-primary text-white px-6 py-3 rounded-lg shadow-lg hover-bg-primary transition-all">
+                        <i class="fas fa-save mr-2"></i> Değişiklikleri Kaydet
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="qrScanner" class="page hidden">
+            <div class="max-w-md mx-auto bg-white p-8 rounded-xl shadow-md">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">QR Kod Tara</h2>
+                <div class="text-center mb-4">
+                    <input type="text" id="list-id-input" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Liste ID girin">
+                </div>
+                <button id="scan-qr-button" class="w-full bg-primary text-white py-2 rounded-lg hover-bg-primary transition-all mb-4">
+                    <i class="fas fa-qrcode mr-2"></i> QR Kod Tara
+                </button>
+                <div id="qr-scanner-container" class="hidden mb-4 flex justify-center">
+                    <video id="qr-video" class="w-full rounded-lg"></video>
+                </div>
+                <button id="view-list-button" class="w-full bg-primary text-white py-2 rounded-lg hover-bg-primary transition-all">
+                    <i class="fas fa-eye mr-2"></i> Listeyi Görüntüle
+                </button>
+            </div>
+        </div>
+
+        <div id="guide" class="page hidden">
+            <div class="max-w-3xl mx-auto">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">Kullanım Kılavuzu</h2>
+                
+                <div class="bg-white p-6 rounded-xl shadow-md mb-8">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Hesap Oluşturma ve Giriş</h3>
+                    <ol class="list-decimal pl-5 space-y-3 text-gray-700">
+                        <li>Sağ üst köşedeki "Kayıt Ol" butonuna tıklayın.</li>
+                        <li>Ad, e-posta ve şifre bilgilerinizi girin.</li>
+                        <li>Hesabınızı oluşturduktan sonra, e-posta ve şifrenizle giriş yapabilirsiniz.</li>
+                        <li>Her hesap en fazla 4 adet liste oluşturabilir.</li>
+                    </ol>
+                </div>
+                
+                <div class="bg-white p-6 rounded-xl shadow-md mb-8">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Liste Oluşturma</h3>
+                    <ol class="list-decimal pl-5 space-y-3 text-gray-700">
+                        <li>"Liste Oluştur" butonuna tıklayın.</li>
+                        <li>Listenize bir isim verin.</li>
+                        <li>Öğe ekleme formunda öğe adı, miktarı ve isterseniz bir resim ekleyin.</li>
+                        <li>"Öğe Ekle" butonuna tıklayarak listeye ekleyin.</li>
+                        <li>Tüm öğeleri ekledikten sonra "Kaydet ve QR Kod Oluştur" butonuna tıklayın.</li>
+                    </ol>
+                </div>
+                
+                <div class="bg-white p-6 rounded-xl shadow-md mb-8">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">QR Kod Paylaşımı</h3>
+                    <ol class="list-decimal pl-5 space-y-3 text-gray-700">
+                        <li>Liste oluşturulduktan sonra otomatik olarak bir QR kod oluşturulacaktır.</li>
+                        <li>"QR Kodu İndir" butonuna tıklayarak kodu kaydedebilirsiniz.</li>
+                        <li>QR kodu başkalarıyla paylaşabilirsiniz.</li>
+                        <li>QR kodu taratarak listeye erişebilir ve gerekirse düzenleyebilirsiniz.</li>
+                    </ol>
+                </div>
+                
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Liste Düzenleme</h3>
+                    <ol class="list-decimal pl-5 space-y-3 text-gray-700">
+                        <li>Listenizi görüntülerken "Listeyi Düzenle" butonuna tıklayın.</li>
+                        <li>Liste adını veya öğeleri değiştirebilir, yeni öğeler ekleyebilir veya mevcut öğeleri silebilirsiniz.</li>
+                        <li>Değişiklikleri tamamladıktan sonra "Değişiklikleri Kaydet" butonuna tıklayın.</li>
+                        <li>Değişiklikler aynı QR kod üzerinden erişilebilir olacaktır.</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+        <div id="contact" class="page hidden">
+            <div class="max-w-3xl mx-auto">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">İletişim</h2>
+                
+                <div class="bg-white p-6 rounded-xl shadow-md mb-8">
+                    <div class="flex items-start mb-6">
+                        <div class="text-primary text-2xl mr-4">
+                            <i class="fas fa-envelope"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-800 mb-1">E-posta</h3>
+                            <p class="text-gray-700">info@qrliste.com</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-start mb-6">
+                        <div class="text-primary text-2xl mr-4">
+                            <i class="fas fa-phone"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-800 mb-1">Telefon</h3>
+                            <p class="text-gray-700">+90 555 123 4567</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-start">
+                        <div class="text-primary text-2xl mr-4">
+                            <i class="fas fa-map-marker-alt"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-800 mb-1">Adres</h3>
+                            <p class="text-gray-700">Teknoloji Caddesi, No:42<br>İstanbul / Türkiye</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Bize Yazın</h3>
+                    
+                    <form id="contact-form">
+                        <div class="grid md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label for="contact-name" class="block text-gray-700 mb-2">Ad Soyad</label>
+                                <input type="text" id="contact-name" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" required>
+                            </div>
+                            <div>
+                                <label for="contact-email" class="block text-gray-700 mb-2">E-posta</label>
+                                <input type="email" id="contact-email" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" required>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="contact-subject" class="block text-gray-700 mb-2">Konu</label>
+                            <input type="text" id="contact-subject" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" required>
+                        </div>
+                        
+                        <div class="mb-6">
+                            <label for="contact-message" class="block text-gray-700 mb-2">Mesajınız</label>
+                            <textarea id="contact-message" rows="5" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" required></textarea>
+                        </div>
+                        
+                        <button type="submit" class="bg-primary text-white px-6 py-3 rounded-lg shadow-lg hover-bg-primary transition-all">
+                            <i class="fas fa-paper-plane mr-2"></i> Gönder
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-gray-800 text-white py-10 mt-16">
+        <div class="container mx-auto px-4">
+            <div class="grid md:grid-cols-3 gap-8">
+                <div>
+                    <div class="flex items-center space-x-2 mb-4">
+                        <i class="fas fa-qrcode text-2xl text-white"></i>
+                        <h3 class="text-xl font-bold">QR Liste</h3>
+                    </div>
+                    <p class="text-gray-400">
+                        İhtiyaçlarınızı organize etmenin en kolay yolu. Liste oluşturun, QR kod ile paylaşın, düzenleyin.
+                    </p>
+                </div>
+                
+                <div>
+                    <h3 class="text-lg font-bold mb-4">Hızlı Bağlantılar</h3>
+                    <ul class="space-y-2 text-gray-400">
+                        <li><a href="#" class="hover:text-white transition-all" onclick="showPage('home')">Ana Sayfa</a></li>
+                        <li><a href="#" class="hover:text-white transition-all" onclick="showPage('guide')">Kullanım Kılavuzu</a></li>
+                        <li><a href="#" class="hover:text-white transition-all" onclick="showPage('contact')">İletişim</a></li>
+                        <li><a href="#" class="hover:text-white transition-all auth-hide" onclick="showPage('login')">Giriş Yap</a></li>
+                        <li><a href="#" class="hover:text-white transition-all auth-hide" onclick="showPage('register')">Kayıt Ol</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h3 class="text-lg font-bold mb-4">İletişim</h3>
+                    <ul class="space-y-2 text-gray-400">
+                        <li class="flex items-start">
+                            <i class="fas fa-envelope mt-1 mr-2"></i>
+                            <span>info@qrliste.com</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-phone mt-1 mr-2"></i>
+                            <span>+90 555 123 4567</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-map-marker-alt mt-1 mr-2"></i>
+                            <span>Teknoloji Caddesi, No:42<br>İstanbul / Türkiye</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="border-t border-gray-700 mt-8 pt-8 text-center text-gray-400">
+                <p>&copy; 2025 QR Liste. Tüm hakları saklıdır.</p>
+            </div>
+        </div>
+    </footer>
+
+    <div id="qr-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white p-6 rounded-xl shadow-lg max-w-md w-full">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-gray-800">QR Kod</h3>
+                <button id="close-qr-modal" class="text-gray-500 hover:text-gray-800">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div id="modal-qrcode-container" class="flex justify-center mb-6"></div>
+            <div class="text-center text-gray-700 mb-6">
+                <p class="mb-2">Bu QR kodu tarayarak listeye erişebilirsiniz.</p>
+                <p id="qr-list-id" class="font-mono bg-gray-100 p-2 rounded"></p>
+            </div>
+            <div class="flex space-x-2">
+                <button id="modal-download-qr" class="flex-1 bg-primary text-white py-2 rounded-lg hover-bg-primary transition-all">
+                    <i class="fas fa-download mr-2"></i> QR Kodu İndir
+                </button>
+                <button id="copy-list-id" class="flex-1 bg-gray-200 text-gray-800 py-2 rounded-lg hover:bg-gray-300 transition-all">
+                    <i class="fas fa-copy mr-2"></i> ID Kopyala
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="alert" class="fixed bottom-4 right-4 max-w-xs bg-white rounded-lg shadow-lg overflow-hidden transform transition-all duration-300 translate-y-20 opacity-0">
+        <div class="p-4">
+            <div class="flex items-start">
+                <div id="alert-icon" class="flex-shrink-0">
+                    <i class="fas fa-check-circle text-green-500 text-xl"></i>
+                </div>
+                <div class="ml-3 w-0 flex-1">
+                    <p id="alert-message" class="text-sm font-medium text-gray-800">
+                        İşlem başarıyla tamamlandı.
+                    </p>
+                </div>
+                <div class="ml-4 flex-shrink-0 flex">
+                    <button id="close-alert" class="inline-flex text-gray-400 hover:text-gray-500">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div id="alert-progress" class="h-1 bg-green-500"></div>
+    </div>
+
+    <script>
+        // Firebase Yapılandırması - Kendi Firebase projenizin bilgilerini buraya girin
+        const firebaseConfig = {
+            apiKey: "AIzaSyCGG5Ur3YpVxbtkjooMxE6r7RPuAmZoFRI",
+            authDomain: "anonim-not.firebaseapp.com",
+            projectId: "anonim-not",
+            storageBucket: "anonim-not.appspot.com",
+            messagingSenderId: "1020793266706",
+            appId: "1:1020793266706:web:bdaba147c8367a50dfaecb"
+        };
+        
+        // Firebase'i Başlat
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        const storage = firebase.storage();
+        
+        // Global Değişkenler
+        let currentUser = null; // Mevcut kullanıcı bilgisi
+        let currentListId = null; // Şu anda görüntülenen listenin ID'si
+        let currentListItems = []; // Yeni oluşturulan liste öğeleri
+        let editingListId = null; // Düzenlenen listenin ID'si
+        let editingListItems = []; // Düzenlenen liste öğeleri
+        let publicListId = null; // Genel olarak görüntülenen listenin ID'si
+        let publicListItems = []; // Genel olarak görüntülenen liste öğeleri
+        let qrScanner = null; // QR kod tarayıcı nesnesi
+        
+        // DOM Elementleri
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const mobileMenu = document.getElementById('mobile-menu');
+        const pages = document.querySelectorAll('.page'); // Tüm sayfa divleri
+        const loginForm = document.getElementById('login-form');
+        const registerForm = document.getElementById('register-form');
+        const addItemButton = document.getElementById('add-item');
+        const saveListButton = document.getElementById('save-list');
+        const editListButton = document.getElementById('edit-list');
+        const updateListButton = document.getElementById('update-list');
+        const qrModal = document.getElementById('qr-modal');
+        const closeQrModalButton = document.getElementById('close-qr-modal');
+        const modalDownloadQrButton = document.getElementById('modal-download-qr');
+        const copyListIdButton = document.getElementById('copy-list-id');
+        const downloadQrButton = document.getElementById('download-qr');
+        const editPublicListButton = document.getElementById('edit-public-list');
+        const updatePublicListButton = document.getElementById('update-public-list');
+        const editPublicAddItemButton = document.getElementById('edit-public-add-item');
+        const scanQrButton = document.getElementById('scan-qr-button');
+        const viewListButton = document.getElementById('view-list-button');
+        const contactForm = document.getElementById('contact-form');
+        const alert = document.getElementById('alert');
+        const alertIcon = document.getElementById('alert-icon');
+        const alertMessage = document.getElementById('alert-message');
+        const alertProgress = document.getElementById('alert-progress');
+        const closeAlertButton = document.getElementById('close-alert');
+        
+        // Olay Dinleyicileri
+        document.addEventListener('DOMContentLoaded', initApp); // Sayfa yüklendiğinde uygulamayı başlat
+        mobileMenuButton.addEventListener('click', toggleMobileMenu); // Mobil menüyü aç/kapat
+        loginForm.addEventListener('submit', handleLogin); // Giriş formunu işle
+        registerForm.addEventListener('submit', handleRegister); // Kayıt formunu işle
+        addItemButton.addEventListener('click', addItemToList); // Yeni öğe ekle
+        saveListButton.addEventListener('click', saveList); // Listeyi kaydet
+        editListButton.addEventListener('click', editList); // Listeyi düzenle moduna geç
+        updateListButton.addEventListener('click', updateList); // Düzenlenmiş listeyi güncelle
+        closeQrModalButton.addEventListener('click', closeQrModal); // QR modalı kapat
+        modalDownloadQrButton.addEventListener('click', downloadQrCode); // Modal'dan QR kodu indir
+        copyListIdButton.addEventListener('click', copyListId); // Liste ID'sini kopyala
+        downloadQrButton.addEventListener('click', downloadQrCode); // Görüntüleme sayfasından QR kodu indir
+        editPublicListButton.addEventListener('click', editPublicList); // Genel listeyi düzenle moduna geç
+        updatePublicListButton.addEventListener('click', updatePublicList); // Düzenlenmiş genel listeyi güncelle
+        editPublicAddItemButton.addEventListener('click', addItemToPublicList); // Genel listeye öğe ekle
+        scanQrButton.addEventListener('click', initQrScanner); // QR tarayıcıyı başlat
+        viewListButton.addEventListener('click', viewListById); // ID ile liste görüntüle
+        document.getElementById('edit-add-item').addEventListener('click', addItemToEditList); // Düzenleme sayfasında öğe ekle
+        contactForm.addEventListener('submit', handleContactForm); // İletişim formunu işle
+        closeAlertButton.addEventListener('click', hideAlert); // Uyarıyı kapat
+        
+        // Uygulamayı Başlat
+        function initApp() {
+            // Kullanıcının oturum açma durumunu kontrol et
+            auth.onAuthStateChanged(user => {
+                currentUser = user; // Mevcut kullanıcıyı ayarla
+                updateAuthUI(); // UI'yı kimlik doğrulama durumuna göre güncelle
+                
+                if (user) {
+                    loadUserLists(); // Kullanıcı giriş yapmışsa listelerini yükle
+                }
+                
+                // URL'deki liste ID'sini kontrol et (QR kod ile paylaşılan listeler için)
+                const urlParams = new URLSearchParams(window.location.search);
+                const listId = urlParams.get('list');
+                
+                if (listId) {
+                    loadPublicList(listId); // Liste ID'si varsa genel listeyi yükle
+                } else {
+                    showPage('home'); // Yoksa ana sayfayı göster
+                }
+            });
+        }
+        
+        // Mobil Menüyü Aç/Kapat
+        function toggleMobileMenu() {
+            mobileMenu.classList.toggle('hidden');
+        }
+        
+        // Sayfayı Göster
+        function showPage(pageId) {
+            pages.forEach(page => {
+                page.classList.add('hidden'); // Tüm sayfaları gizle
+            });
+            
+            document.getElementById(pageId).classList.remove('hidden'); // İstenen sayfayı göster
+            
+            // Mobil menü açıksa kapat
+            if (mobileMenu && !mobileMenu.classList.contains('hidden')) {
+                mobileMenu.classList.add('hidden');
+            }
+            
+            // Sayfayı en üste kaydır
+            window.scrollTo(0, 0);
+
+            // Belirli sayfa yüklemeleri için ek işlemler
+            if (pageId === 'dashboard' && currentUser) {
+                loadUserLists(); // Dashboard'a gidildiğinde kullanıcı listelerini yeniden yükle
+            } else if (pageId === 'createList') {
+                currentListItems = []; // Yeni liste oluşturulurken öğeleri temizle
+                renderCurrentListItems(); // Listeyi boş olarak render et
+                document.getElementById('list-name').value = ''; // Liste adını temizle
+            }
+        }
+        
+        // Kimlik Doğrulama Durumuna Göre UI'yı Güncelle
+        function updateAuthUI() {
+            const authHideElements = document.querySelectorAll('.auth-hide'); // Giriş yapılmamışsa gizlenecekler
+            const authShowElements = document.querySelectorAll('.auth-show'); // Giriş yapılmışsa gösterilecekler
+            
+            if (currentUser) {
+                authHideElements.forEach(el => el.classList.add('hidden'));
+                authShowElements.forEach(el => el.classList.remove('hidden'));
+            } else {
+                authHideElements.forEach(el => el.classList.remove('hidden'));
+                authShowElements.forEach(el => el.classList.add('hidden'));
+            }
+        }
+        
+        // Uyarı Mesajını Göster
+        let alertTimeout; // Uyarı zaman aşımı için değişken
+
+        function showAlert(message, type = 'success') {
+            clearTimeout(alertTimeout); // Mevcut zaman aşımını temizle
+
+            alertMessage.textContent = message; // Mesajı ayarla
+            if (type === 'success') {
+                alertIcon.innerHTML = '<i class="fas fa-check-circle text-green-500 text-xl"></i>'; // Başarı ikonu
+                alertProgress.classList.remove('bg-red-500');
+                alertProgress.classList.add('bg-green-500');
+            } else {
+                alertIcon.innerHTML = '<i class="fas fa-times-circle text-red-500 text-xl"></i>'; // Hata ikonu
+                alertProgress.classList.remove('bg-green-500');
+                alertProgress.classList.add('bg-red-500');
+            }
+
+            alert.classList.remove('translate-y-20', 'opacity-0'); // Uyarıyı görünür yap
+            alert.classList.add('translate-y-0', 'opacity-100');
+
+            alertProgress.style.width = '100%'; // İlerleme çubuğunu başlat
+            alertProgress.style.transition = 'width 4s linear'; // İlerleme animasyonu
+
+            alertTimeout = setTimeout(() => {
+                hideAlert(); // Belirli bir süre sonra uyarıyı gizle
+            }, 4000);
+        }
+
+        // Uyarı Mesajını Gizle
+        function hideAlert() {
+            alert.classList.remove('translate-y-0', 'opacity-100'); // Uyarıyı gizle
+            alert.classList.add('translate-y-20', 'opacity-0');
+            alertProgress.style.transition = 'none'; // Geçişi sıfırla
+            alertProgress.style.width = '0%'; // Genişliği sıfırla
+        }
+
+        // Kullanıcı Kimlik Doğrulama İşlemleri
+
+        // Giriş İşleyici
+        async function handleLogin(e) {
+            e.preventDefault(); // Formun varsayılan gönderimini engelle
+            const email = loginForm['login-email'].value;
+            const password = loginForm['login-password'].value;
+            const loginError = document.getElementById('login-error');
+
+            try {
+                await auth.signInWithEmailAndPassword(email, password); // Firebase ile giriş yap
+                showAlert('Giriş başarılı!', 'success');
+                loginError.classList.add('hidden'); // Hata mesajını gizle
+                showPage('dashboard'); // Dashboard sayfasına yönlendir
+            } catch (error) {
+                loginError.textContent = 'Giriş başarısız: ' + error.message; // Hata mesajını göster
+                loginError.classList.remove('hidden');
+                showAlert('Giriş başarısız!', 'error');
+            }
+        }
+
+        // Kayıt İşleyici
+        async function handleRegister(e) {
+            e.preventDefault(); // Formun varsayılan gönderimini engelle
+            const name = registerForm['register-name'].value;
+            const email = registerForm['register-email'].value;
+            const password = registerForm['register-password'].value;
+            const registerError = document.getElementById('register-error');
+
+            try {
+                const userCredential = await auth.createUserWithEmailAndPassword(email, password); // Firebase ile kullanıcı oluştur
+                await userCredential.user.updateProfile({ displayName: name }); // Kullanıcı adını güncelle
+                showAlert('Kayıt başarılı! Giriş yapılıyor...', 'success');
+                registerError.classList.add('hidden'); // Hata mesajını gizle
+                showPage('dashboard'); // Dashboard sayfasına yönlendir
+            } catch (error) {
+                registerError.textContent = 'Kayıt başarısız: ' + error.message; // Hata mesajını göster
+                registerError.classList.remove('hidden');
+                showAlert('Kayıt başarısız!', 'error');
+            }
+        }
+
+        // Çıkış İşleyici
+        async function logout() {
+            try {
+                await auth.signOut(); // Firebase'den çıkış yap
+                showAlert('Çıkış yapıldı!', 'success');
+                showPage('home'); // Ana sayfaya yönlendir
+            } catch (error) {
+                showAlert('Çıkış yaparken bir hata oluştu: ' + error.message, 'error');
+            }
+        }
+
+        // Liste Yönetimi (Oluştur, Görüntüle, Düzenle, Sil)
+
+        // Mevcut Listeye Öğe Ekle (Liste Oluştur Sayfası için)
+        async function addItemToList() {
+            const itemNameInput = document.getElementById('item-name');
+            const itemQuantityInput = document.getElementById('item-quantity');
+            const itemImageInput = document.getElementById('item-image');
+
+            const name = itemNameInput.value.trim();
+            const quantity = itemQuantityInput.value.trim();
+            const imageFile = itemImageInput.files[0];
+
+            if (!name) {
+                showAlert('Lütfen öğe adını girin.', 'error');
+                return;
+            }
+
+            let imageData = null;
+            if (imageFile) {
+                imageData = await readFileAsBase64(imageFile); // Resmi Base64 olarak oku
+            }
+
+            currentListItems.push({ name, quantity, imageData, imageUrl: null, checked: false }); // Öğeyi listeye ekle
+            renderCurrentListItems(); // Listeyi yeniden render et
+
+            // Giriş alanlarını temizle
+            itemNameInput.value = '';
+            itemQuantityInput.value = '';
+            itemImageInput.value = '';
+        }
+
+        // Dosyayı Base64 olarak oku
+        function readFileAsBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // Mevcut Liste Öğelerini Render Et (Liste Oluştur Sayfası için)
+        function renderCurrentListItems() {
+            const itemListDiv = document.getElementById('item-list');
+            itemListDiv.innerHTML = ''; // Mevcut öğeleri temizle
+            document.getElementById('empty-list-message').classList.add('hidden'); // Boş liste mesajını gizle
+
+            if (currentListItems.length === 0) {
+                document.getElementById('empty-list-message').classList.remove('hidden'); // Liste boşsa mesajı göster
+                return;
+            }
+
+            currentListItems.forEach((item, index) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'flex items-center justify-between bg-gray-50 p-3 rounded-lg mb-2';
+                itemDiv.innerHTML = `
+                    <div class="flex items-center flex-1">
+                        ${item.imageData || item.imageUrl ? `<img src="${item.imageData || item.imageUrl}" class="w-12 h-12 object-cover rounded-md mr-4" alt="Öğe Resmi">` : '<i class="fas fa-box text-2xl text-gray-400 mr-4"></i>'}
+                        <div>
+                            <p class="font-medium text-gray-800">${item.name}</p>
+                            <p class="text-sm text-gray-600">${item.quantity || 'Miktar belirtilmemiş'}</p>
+                        </div>
+                    </div>
+                    <button class="text-red-500 hover:text-red-700 ml-4" onclick="removeItemFromList(${index}, 'current')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                `;
+                itemListDiv.appendChild(itemDiv);
+            });
+        }
+
+        // Listeden Öğe Kaldır
+        function removeItemFromList(index, listType) {
+            if (listType === 'current') {
+                currentListItems.splice(index, 1); // Mevcut listeden öğeyi kaldır
+                renderCurrentListItems();
+            } else if (listType === 'edit') {
+                editingListItems.splice(index, 1); // Düzenleme listesinden öğeyi kaldır
+                renderEditListItems();
+            } else if (listType === 'publicEdit') {
+                publicListItems.splice(index, 1); // Genel düzenleme listesinden öğeyi kaldır
+                renderPublicEditListItems();
+            }
+            showAlert('Öğe listeden kaldırıldı.', 'success');
+        }
+
+        // Listeyi Kaydet (Liste Oluştur Sayfası)
+        async function saveList() {
+            if (!currentUser) {
+                showAlert('Lütfen önce giriş yapın', 'error');
+                showPage('login');
+                return;
+            }
+            
+            const listName = document.getElementById('list-name').value.trim();
+            
+            if (!listName) {
+                showAlert('Lütfen liste adını girin', 'error');
+                return;
+            }
+            
+            if (currentListItems.length === 0) {
+                showAlert('Lütfen listeye en az bir öğe ekleyin', 'error');
+                return;
+            }
+            
+            try {
+                // Kullanıcının liste limitine ulaşıp ulaşmadığını kontrol et (maksimum 4 liste)
+                const userListsRef = db.collection('lists').where('userId', '==', currentUser.uid);
+                const snapshot = await userListsRef.get();
+                
+                if (snapshot.size >= 4) {
+                    showAlert('Maksimum liste sayısına ulaştınız (4/4)', 'error');
+                    return;
+                }
+                
+                // Resimleri yükle ve öğeleri güncelle
+                const updatedItems = [];
+                
+                for (const item of currentListItems) {
+                    const updatedItem = { ...item };
+                    delete updatedItem.imageData; // Base64 verisini Firestore'a kaydetmeden önce kaldır
+                    
+                    if (item.imageData) { // Eğer yeni eklenen bir resimse (imageData içeriyorsa)
+                        const imageRef = storage.ref(`images/${currentUser.uid}/${Date.now()}`); // Resim için depolama referansı
+                        
+                        // Base64'ü Blob'a dönüştür
+                        const response = await fetch(item.imageData);
+                        const blob = await response.blob();
+                        
+                        // Resmi yükle
+                        const uploadSnapshot = await imageRef.put(blob);
+                        const imageUrl = await uploadSnapshot.ref.getDownloadURL(); // Yüklenen resmin URL'sini al
+                        updatedItem.imageUrl = imageUrl;
+                    }
+                    updatedItems.push(updatedItem);
+                }
+                
+                // Listeyi Firestore'a kaydet
+                const docRef = await db.collection('lists').add({
+                    userId: currentUser.uid,
+                    name: listName,
+                    items: updatedItems,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                currentListId = docRef.id; // Yeni oluşturulan listenin ID'sini ayarla
+                showAlert('Liste başarıyla kaydedildi!', 'success');
+                showPage('viewList'); // Görüntüleme sayfasına yönlendir
+                displayListDetails(currentListId); // Yeni oluşturulan listeyi görüntüle
+            } catch (error) {
+                showAlert('Liste kaydedilirken bir hata oluştu: ' + error.message, 'error');
+                console.error("Liste kaydedilirken hata: ", error);
+            }
+        }
+
+        // Kullanıcı Listelerini Yükle (Dashboard Sayfası)
+        async function loadUserLists() {
+            if (!currentUser) {
+                return;
+            }
+
+            const userListsDiv = document.getElementById('user-lists');
+            userListsDiv.innerHTML = ''; // Mevcut listeleri temizle
+            document.getElementById('no-lists-message').classList.add('hidden'); // Boş liste mesajını gizle
+            document.getElementById('qr-list-counter').textContent = ''; // Liste sayacını temizle
+
+            try {
+                const listsRef = db.collection('lists').where('userId', '==', currentUser.uid).orderBy('createdAt', 'desc'); // Kullanıcının listelerini oluşturulma tarihine göre al
+                const snapshot = await listsRef.get();
+
+                if (snapshot.empty) {
+                    document.getElementById('no-lists-message').classList.remove('hidden'); // Liste boşsa mesajı göster
+                    return;
+                }
+
+                document.getElementById('qr-list-counter').textContent = `Toplam ${snapshot.size}/4 liste`; // Liste sayacını güncelle
+
+                snapshot.forEach(doc => {
+                    const list = doc.data();
+                    const listId = doc.id;
+
+                    const listCard = document.createElement('div');
+                    listCard.className = 'bg-white p-6 rounded-xl shadow-md flex flex-col justify-between';
+                    listCard.innerHTML = `
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">${list.name}</h3>
+                            <p class="text-sm text-gray-600 mb-4">${list.items ? list.items.length : 0} öğe</p>
+                        </div>
+                        <div class="flex space-x-2 mt-4">
+                            <button onclick="displayListDetails('${listId}')" class="flex-1 bg-primary text-white px-4 py-2 rounded-lg hover-bg-primary transition-all text-sm">
+                                <i class="fas fa-eye mr-2"></i> Görüntüle
+                            </button>
+                            <button onclick="confirmDeleteList('${listId}')" class="flex-1 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-all text-sm">
+                                <i class="fas fa-trash mr-2"></i> Sil
+                            </button>
+                        </div>
+                    `;
+                    userListsDiv.appendChild(listCard);
+                });
+            } catch (error) {
+                showAlert('Listeler yüklenirken bir hata oluştu: ' + error.message, 'error');
+                console.error("Kullanıcı listeleri yüklenirken hata: ", error);
+            }
+        }
+
+        // Liste Detaylarını Görüntüle (Liste Görüntüle Sayfası)
+        async function displayListDetails(listId) {
+            currentListId = listId; // Mevcut liste ID'sini ayarla
+            showPage('viewList'); // Görüntüleme sayfasına yönlendir
+            const viewListName = document.getElementById('view-list-name');
+            const viewItemList = document.getElementById('view-item-list');
+            const qrcodeContainer = document.getElementById('qrcode-container');
+
+            viewListName.textContent = 'Liste Yükleniyor...';
+            viewItemList.innerHTML = '';
+            qrcodeContainer.innerHTML = '';
+
+            try {
+                const listDoc = await db.collection('lists').doc(listId).get(); // Listeyi Firestore'dan al
+                if (!listDoc.exists) {
+                    showAlert('Liste bulunamadı.', 'error');
+                    showPage('dashboard');
+                    return;
+                }
+
+                const list = listDoc.data();
+                viewListName.textContent = list.name;
+                currentListItems = list.items || []; // Global currentListItems'ı güncelle
+
+                if (currentListItems.length === 0) {
+                    viewItemList.innerHTML = '<p class="text-center py-8 text-gray-500"><i class="fas fa-clipboard text-4xl mb-3"></i><p>Bu listede hiç öğe yok.</p></p>';
+                } else {
+                    currentListItems.forEach(item => {
+                        const itemDiv = document.createElement('div');
+                        itemDiv.className = 'flex items-center bg-gray-50 p-3 rounded-lg mb-2';
+                        itemDiv.innerHTML = `
+                            <input type="checkbox" ${item.checked ? 'checked' : ''} class="form-checkbox h-5 w-5 text-primary mr-4" onchange="toggleItemChecked('${listId}', '${item.name}', event.target.checked)">
+                            ${item.imageUrl ? `<img src="${item.imageUrl}" class="w-12 h-12 object-cover rounded-md mr-4" alt="Öğe Resmi">` : '<i class="fas fa-box text-2xl text-gray-400 mr-4"></i>'}
+                            <div class="flex-1">
+                                <p class="font-medium text-gray-800 ${item.checked ? 'line-through text-gray-500' : ''}">${item.name}</p>
+                                <p class="text-sm text-gray-600">${item.quantity || 'Miktar belirtilmemiş'}</p>
+                            </div>
+                        `;
+                        viewItemList.appendChild(itemDiv);
+                    });
+                }
+
+                // QR Kod Oluştur
+                const qrCodeUrl = `${window.location.origin}?list=${listId}`; // Liste ID'sini içeren URL
+                new QRCode(qrcodeContainer, {
+                    text: qrCodeUrl,
+                    width: 200,
+                    height: 200,
+                    colorDark: "#4f46e5",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+            } catch (error) {
+                showAlert('Liste detayları yüklenirken bir hata oluştu: ' + error.message, 'error');
+                console.error("Liste detayları görüntülenirken hata: ", error);
+                showPage('dashboard');
+            }
+        }
+
+        // Öğe İşaretleme Durumunu Değiştir
+        async function toggleItemChecked(listId, itemName, isChecked) {
+            try {
+                const listDoc = await db.collection('lists').doc(listId).get();
+                if (!listDoc.exists) return;
+
+                const listData = listDoc.data();
+                const updatedItems = listData.items.map(item =>
+                    item.name === itemName ? { ...item, checked: isChecked } : item
+                );
+
+                await db.collection('lists').doc(listId).update({ items: updatedItems }); // Firestore'da öğe durumunu güncelle
+                showAlert('Liste öğesi güncellendi.', 'success');
+                displayListDetails(listId); // Değişiklikleri yansıtmak için listeyi yeniden render et
+            } catch (error) {
+                showAlert('Öğe durumu güncellenirken bir hata oluştu: ' + error.message, 'error');
+                console.error("Öğe işaretleme durumu güncellenirken hata: ", error);
+            }
+        }
+
+        // Listeyi Düzenle (Liste Görüntüle Sayfasından)
+        async function editList() {
+            if (!currentListId) {
+                showAlert('Düzenlenecek bir liste seçilmedi.', 'error');
+                return;
+            }
+
+            showPage('editList'); // Düzenleme sayfasına yönlendir
+            const editListNameInput = document.getElementById('edit-list-name');
+            const editListIdPara = document.getElementById('edit-list-id');
+
+            editListIdPara.textContent = `Liste ID: ${currentListId}`;
+
+            try {
+                const listDoc = await db.collection('lists').doc(currentListId).get(); // Listeyi Firestore'dan al
+                if (!listDoc.exists) {
+                    showAlert('Düzenlenecek liste bulunamadı.', 'error');
+                    showPage('dashboard');
+                    return;
+                }
+
+                const list = listDoc.data();
+                editListNameInput.value = list.name;
+                editingListItems = list.items || []; // Mevcut liste öğelerini düzenleme listesine ata
+                renderEditListItems(); // Düzenleme listesini render et
+                editingListId = currentListId; // Düzenlenen listenin ID'sini ayarla
+            } catch (error) {
+                showAlert('Liste düzenleme formu yüklenirken bir hata oluştu: ' + error.message, 'error');
+                console.error("Liste düzenleme formu yüklenirken hata: ", error);
+                showPage('viewList');
+            }
+        }
+
+        // Düzenleme Listesine Öğe Ekle
+        async function addItemToEditList() {
+            const itemNameInput = document.getElementById('edit-item-name');
+            const itemQuantityInput = document.getElementById('edit-item-quantity');
+            const itemImageInput = document.getElementById('edit-item-image');
+
+            const name = itemNameInput.value.trim();
+            const quantity = itemQuantityInput.value.trim();
+            const imageFile = itemImageInput.files[0];
+
+            if (!name) {
+                showAlert('Lütfen öğe adını girin.', 'error');
+                return;
+            }
+
+            let imageData = null;
+            if (imageFile) {
+                imageData = await readFileAsBase64(imageFile); // Resmi Base64 olarak oku
+            }
+
+            editingListItems.push({ name, quantity, imageData, imageUrl: null, checked: false }); // Öğeyi düzenleme listesine ekle
+            renderEditListItems(); // Düzenleme listesini yeniden render et
+
+            // Giriş alanlarını temizle
+            itemNameInput.value = '';
+            itemQuantityInput.value = '';
+            itemImageInput.value = '';
+        }
+
+        // Düzenleme Listesi Öğelerini Render Et
+        function renderEditListItems() {
+            const editItemListDiv = document.getElementById('edit-item-list');
+            editItemListDiv.innerHTML = ''; // Mevcut öğeleri temizle
+
+            if (editingListItems.length === 0) {
+                editItemListDiv.innerHTML = '<p class="text-center py-8 text-gray-500"><i class="fas fa-clipboard text-4xl mb-3"></i><p>Henüz öğe eklemediniz.</p></p>';
+                return;
+            }
+
+            editingListItems.forEach((item, index) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'flex items-center justify-between bg-gray-50 p-3 rounded-lg mb-2';
+                itemDiv.innerHTML = `
+                    <div class="flex items-center flex-1">
+                        ${item.imageData || item.imageUrl ? `<img src="${item.imageData || item.imageUrl}" class="w-12 h-12 object-cover rounded-md mr-4" alt="Öğe Resmi">` : '<i class="fas fa-box text-2xl text-gray-400 mr-4"></i>'}
+                        <div>
+                            <p class="font-medium text-gray-800">${item.name}</p>
+                            <p class="text-sm text-gray-600">${item.quantity || 'Miktar belirtilmemiş'}</p>
+                        </div>
+                    </div>
+                    <button class="text-red-500 hover:text-red-700 ml-4" onclick="removeItemFromList(${index}, 'edit')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                `;
+                editItemListDiv.appendChild(itemDiv);
+            });
+        }
+
+        // Listeyi Güncelle
+        async function updateList() {
+            if (!editingListId) {
+                showAlert('Güncellenecek bir liste seçilmedi.', 'error');
+                return;
+            }
+
+            const listName = document.getElementById('edit-list-name').value.trim();
+
+            if (!listName) {
+                showAlert('Lütfen liste adını girin.', 'error');
+                return;
+            }
+
+            if (editingListItems.length === 0) {
+                showAlert('Lütfen listeye en az bir öğe ekleyin', 'error');
+                return;
+            }
+
+            try {
+                // Düzenleme listesindeki yeni resimleri yükle ve URL'leri güncelle
+                const updatedItems = [];
+                for (const item of editingListItems) {
+                    const updatedItem = { ...item };
+                    delete updatedItem.imageData; // Base64 verisini Firestore'a kaydetmeden önce kaldır
+
+                    if (item.imageData) { // Eğer yeni eklenen bir resimse (imageData içeriyorsa)
+                        const imageRef = storage.ref(`images/${currentUser.uid}/${Date.now()}`);
+                        const response = await fetch(item.imageData);
+                        const blob = await response.blob();
+                        const uploadSnapshot = await imageRef.put(blob);
+                        updatedItem.imageUrl = await uploadSnapshot.ref.getDownloadURL();
+                    }
+                    updatedItems.push(updatedItem);
+                }
+
+                await db.collection('lists').doc(editingListId).update({
+                    name: listName,
+                    items: updatedItems,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                showAlert('Liste başarıyla güncellendi!', 'success');
+                showPage('viewList'); // Görüntüleme sayfasına yönlendir
+                displayListDetails(editingListId); // Güncellenmiş listeyi göster
+                editingListId = null; // Düzenleme ID'sini temizle
+                editingListItems = []; // Düzenleme öğelerini temizle
+            } catch (error) {
+                showAlert('Liste güncellenirken bir hata oluştu: ' + error.message, 'error');
+                console.error("Liste güncellenirken hata: ", error);
+            }
+        }
+
+        // Düzenlemeyi İptal Et
+        function cancelEdit() {
+            editingListId = null;
+            editingListItems = [];
+            showPage('viewList'); // Görüntüleme sayfasına geri dön
+            displayListDetails(currentListId); // Mevcut listeyi tekrar göster
+        }
+
+        // Liste Silme Onayı
+        function confirmDeleteList(listId) {
+            // Basit bir onay penceresi kullanıyoruz. Daha gelişmiş bir modal kullanılabilir.
+            if (confirm('Bu listeyi silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.')) {
+                deleteList(listId);
+            }
+        }
+
+        // Listeyi Sil
+        async function deleteList(listId) {
+            try {
+                // Depolamadaki ilişkili resimleri sil (isteğe bağlı ama iyi bir uygulama)
+                const listDoc = await db.collection('lists').doc(listId).get();
+                if (listDoc.exists) {
+                    const listData = listDoc.data();
+                    if (listData.items) {
+                        for (const item of listData.items) {
+                            if (item.imageUrl) {
+                                try {
+                                    const imageRef = storage.refFromURL(item.imageUrl);
+                                    await imageRef.delete();
+                                } catch (imageError) {
+                                    console.warn("Resim silinemedi (mevcut olmayabilir veya izin sorunu):", imageError);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                await db.collection('lists').doc(listId).delete(); // Listeyi Firestore'dan sil
+                showAlert('Liste başarıyla silindi.', 'success');
+                loadUserLists(); // Silme işleminden sonra listeleri yeniden yükle
+            } catch (error) {
+                showAlert('Liste silinirken bir hata oluştu: ' + error.message, 'error');
+                console.error("Liste silinirken hata: ", error);
+            }
+        }
+
+        // QR Kod Fonksiyonları
+
+        // QR Kodu İndir
+        function downloadQrCode() {
+            let containerId = 'qrcode-container'; // Varsayılan olarak viewList sayfası için
+            if (qrModal.classList.contains('flex')) { // Eğer modal açıksa
+                containerId = 'modal-qrcode-container';
+            }
+
+            const qrcodeSvg = document.getElementById(containerId).querySelector('svg'); // SVG elementini al
+            if (qrcodeSvg) {
+                const serializer = new XMLSerializer();
+                const svgString = serializer.serializeToString(qrcodeSvg); // SVG'yi stringe dönüştür
+
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const img = new Image();
+
+                img.onload = () => {
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+
+                    const a = document.createElement('a');
+                    a.download = `QRListe_${currentListId || 'list'}.png`; // Dosya adını ayarla
+                    a.href = canvas.toDataURL('image/png'); // Canvas'ı PNG olarak al
+                    a.click(); // İndirmeyi tetikle
+                    showAlert('QR Kod indirildi!', 'success');
+                };
+
+                img.src = 'data:image/svg+xml;base64,' + btoa(svgString); // Base64 SVG'den resim oluştur
+            } else {
+                showAlert('QR kod bulunamadı.', 'error');
+            }
+        }
+
+        // QR Modalını Aç (şu an doğrudan kullanılmıyor ama iyi bir fonksiyon)
+        function openQrModal(listId, qrCodeUrl) {
+            document.getElementById('modal-qrcode-container').innerHTML = '';
+            new QRCode(document.getElementById('modal-qrcode-container'), {
+                text: qrCodeUrl,
+                width: 200,
+                height: 200,
+                colorDark: "#4f46e5",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+            document.getElementById('qr-list-id').textContent = listId;
+            qrModal.classList.remove('hidden');
+            qrModal.classList.add('flex');
+        }
+
+        // QR Modalını Kapat
+        function closeQrModal() {
+            qrModal.classList.add('hidden');
+            qrModal.classList.remove('flex');
+            document.getElementById('modal-qrcode-container').innerHTML = ''; // QR kodu modal kapanınca temizle
+        }
+
+        // Liste ID'sini Kopyala
+        function copyListId() {
+            const listIdText = document.getElementById('qr-list-id').textContent;
+            // document.execCommand('copy') kullanılıyor çünkü navigator.clipboard.writeText() iframe kısıtlamaları nedeniyle çalışmayabilir.
+            const tempInput = document.createElement('textarea');
+            tempInput.value = listIdText;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+            showAlert('Liste ID kopyalandı!', 'success');
+        }
+
+        // Genel Liste Görüntüleme ve Düzenleme
+
+        // URL'den Genel Listeyi Yükle
+        async function loadPublicList(listId) {
+            publicListId = listId; // Genel liste ID'sini ayarla
+            showPage('publicList'); // Genel liste görüntüleme sayfasına yönlendir
+            const publicListName = document.getElementById('public-list-name');
+            const publicListIdPara = document.getElementById('public-list-id');
+            const publicItemList = document.getElementById('public-item-list');
+
+            publicListName.textContent = 'Liste Yükleniyor...';
+            publicListIdPara.textContent = `Liste ID: ${listId}`;
+            publicItemList.innerHTML = '';
+
+            try {
+                const listDoc = await db.collection('lists').doc(listId).get(); // Listeyi Firestore'dan al
+                if (!listDoc.exists) {
+                    showAlert('Paylaşılan liste bulunamadı.', 'error');
+                    showPage('home');
+                    return;
+                }
+
+                const list = listDoc.data();
+                publicListName.textContent = list.name;
+                publicListItems = list.items || []; // publicListItems'ı doldur
+
+                if (publicListItems.length === 0) {
+                    publicItemList.innerHTML = '<p class="text-center py-8 text-gray-500"><i class="fas fa-clipboard text-4xl mb-3"></i><p>Bu listede hiç öğe yok.</p></p>';
+                } else {
+                    publicListItems.forEach(item => {
+                        const itemDiv = document.createElement('div');
+                        itemDiv.className = 'flex items-center bg-gray-50 p-3 rounded-lg mb-2';
+                        itemDiv.innerHTML = `
+                            <input type="checkbox" ${item.checked ? 'checked' : ''} class="form-checkbox h-5 w-5 text-primary mr-4" onchange="toggleItemChecked('${listId}', '${item.name}', event.target.checked)">
+                            ${item.imageUrl ? `<img src="${item.imageUrl}" class="w-12 h-12 object-cover rounded-md mr-4" alt="Öğe Resmi">` : '<i class="fas fa-box text-2xl text-gray-400 mr-4"></i>'}
+                            <div class="flex-1">
+                                <p class="font-medium text-gray-800 ${item.checked ? 'line-through text-gray-500' : ''}">${item.name}</p>
+                                <p class="text-sm text-gray-600">${item.quantity || 'Miktar belirtilmemiş'}</p>
+                            </div>
+                        `;
+                        publicItemList.appendChild(itemDiv);
+                    });
+                }
+            } catch (error) {
+                showAlert('Paylaşılan liste yüklenirken bir hata oluştu: ' + error.message, 'error');
+                console.error("Genel liste yüklenirken hata: ", error);
+                showPage('home');
+            }
+        }
+
+        // Genel Listeyi Düzenle
+        async function editPublicList() {
+            if (!publicListId) {
+                showAlert('Düzenlenecek bir genel liste seçilmedi.', 'error');
+                return;
+            }
+
+            showPage('editPublicList'); // Genel liste düzenleme sayfasına yönlendir
+            const editPublicListNameInput = document.getElementById('edit-public-list-name');
+            const editPublicListIdPara = document.getElementById('edit-public-list-id');
+
+            editPublicListIdPara.textContent = `Liste ID: ${publicListId}`;
+
+            try {
+                const listDoc = await db.collection('lists').doc(publicListId).get(); // Listeyi Firestore'dan al
+                if (!listDoc.exists) {
+                    showAlert('Düzenlenecek genel liste bulunamadı.', 'error');
+                    showPage('publicList');
+                    return;
+                }
+
+                const list = listDoc.data();
+                editPublicListNameInput.value = list.name;
+                publicListItems = list.items || []; // Düzenleme için publicListItems'ı doldur
+                renderPublicEditListItems(); // Genel düzenleme listesini render et
+            } catch (error) {
+                showAlert('Genel liste düzenleme formu yüklenirken bir hata oluştu: ' + error.message, 'error');
+                console.error("Genel liste düzenleme formu yüklenirken hata: ", error);
+                showPage('publicList');
+            }
+        }
+
+        // Genel Listeye Öğe Ekle
+        async function addItemToPublicList() {
+            const itemNameInput = document.getElementById('edit-public-item-name');
+            const itemQuantityInput = document.getElementById('edit-public-item-quantity');
+            const itemImageInput = document.getElementById('edit-public-item-image');
+
+            const name = itemNameInput.value.trim();
+            const quantity = itemQuantityInput.value.trim();
+            const imageFile = itemImageInput.files[0];
+
+            if (!name) {
+                showAlert('Lütfen öğe adını girin.', 'error');
+                return;
+            }
+
+            let imageData = null;
+            if (imageFile) {
+                imageData = await readFileAsBase64(imageFile); // Resmi Base64 olarak oku
+            }
+
+            publicListItems.push({ name, quantity, imageData, imageUrl: null, checked: false }); // Öğeyi genel listeye ekle
+            renderPublicEditListItems(); // Genel düzenleme listesini yeniden render et
+
+            // Giriş alanlarını temizle
+            itemNameInput.value = '';
+            itemQuantityInput.value = '';
+            itemImageInput.value = '';
+        }
+
+        // Genel Düzenleme Listesi Öğelerini Render Et
+        function renderPublicEditListItems() {
+            const editPublicItemListDiv = document.getElementById('edit-public-item-list');
+            editPublicItemListDiv.innerHTML = ''; // Mevcut öğeleri temizle
+
+            if (publicListItems.length === 0) {
+                editPublicItemListDiv.innerHTML = '<p class="text-center py-8 text-gray-500"><i class="fas fa-clipboard text-4xl mb-3"></i><p>Henüz öğe eklemediniz.</p></p>';
+                return;
+            }
+
+            publicListItems.forEach((item, index) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'flex items-center justify-between bg-gray-50 p-3 rounded-lg mb-2';
+                itemDiv.innerHTML = `
+                    <div class="flex items-center flex-1">
+                        ${item.imageData || item.imageUrl ? `<img src="${item.imageData || item.imageUrl}" class="w-12 h-12 object-cover rounded-md mr-4" alt="Öğe Resmi">` : '<i class="fas fa-box text-2xl text-gray-400 mr-4"></i>'}
+                        <div>
+                            <p class="font-medium text-gray-800">${item.name}</p>
+                            <p class="text-sm text-gray-600">${item.quantity || 'Miktar belirtilmemiş'}</p>
+                        </div>
+                    </div>
+                    <button class="text-red-500 hover:text-red-700 ml-4" onclick="removeItemFromList(${index}, 'publicEdit')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                `;
+                editPublicItemListDiv.appendChild(itemDiv);
+            });
+        }
+
+        // Genel Listeyi Güncelle
+        async function updatePublicList() {
+            if (!publicListId) {
+                showAlert('Güncellenecek bir genel liste seçilmedi.', 'error');
+                return;
+            }
+
+            const listName = document.getElementById('edit-public-list-name').value.trim();
+
+            if (!listName) {
+                showAlert('Lütfen liste adını girin.', 'error');
+                return;
+            }
+
+            if (publicListItems.length === 0) {
+                showAlert('Lütfen listeye en az bir öğe ekleyin', 'error');
+                return;
+            }
+
+            try {
+                const updatedItems = [];
+                for (const item of publicListItems) {
+                    const updatedItem = { ...item };
+                    delete updatedItem.imageData;
+
+                    if (item.imageData) {
+                        // Genel listeler için resimleri liste ID'si ile depola
+                        const imageRef = storage.ref(`images/${publicListId}/${Date.now()}`); 
+                        const response = await fetch(item.imageData);
+                        const blob = await response.blob();
+                        const uploadSnapshot = await imageRef.put(blob);
+                        updatedItem.imageUrl = await uploadSnapshot.ref.getDownloadURL();
+                    }
+                    updatedItems.push(updatedItem);
+                }
+
+                await db.collection('lists').doc(publicListId).update({
+                    name: listName,
+                    items: updatedItems,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                showAlert('Liste başarıyla güncellendi!', 'success');
+                showPage('publicList');
+                loadPublicList(publicListId); // Güncellenmiş listeyi göster
+            } catch (error) {
+                showAlert('Genel liste güncellenirken bir hata oluştu: ' + error.message, 'error');
+                console.error("Genel liste güncellenirken hata: ", error);
+            }
+        }
+
+        // Genel Düzenlemeyi İptal Et
+        function cancelPublicEdit() {
+            showPage('publicList');
+            loadPublicList(publicListId);
+        }
+
+        // QR Tarayıcı
+        function initQrScanner() {
+            showPage('qrScanner');
+            const qrVideo = document.getElementById('qr-video');
+            const qrScannerContainer = document.getElementById('qr-scanner-container');
+
+            if (qrScanner) {
+                qrScanner.destroy(); // Önceki tarayıcı örneğini yok et
+            }
+
+            qrScannerContainer.classList.remove('hidden'); // Tarayıcı konteynerini göster
+
+            // Kamera erişimi için ortamın uygun olup olmadığını kontrol et
+            Html5Qrcode.getCameras().then(devices => {
+                if (devices && devices.length) {
+                    const cameraId = devices[0].id; // İlk kamerayı kullan
+                    qrScanner = new Html5Qrcode("qr-video");
+                    qrScanner.start(
+                            cameraId, {
+                                fps: 10, // Saniyedeki kare sayısı
+                                qrbox: {
+                                    width: 250,
+                                    height: 250
+                                } // Tarama alanı
+                            },
+                            (decodedText, decodedResult) => {
+                                // Başarılı tarama durumunda
+                                if (decodedText) {
+                                    qrScanner.stop(); // Tarayıcıyı durdur
+                                    // URL'den list ID'sini çıkar veya doğrudan metni kullan
+                                    document.getElementById('list-id-input').value = decodedText.split('?list=')[1] || decodedText; 
+                                    showAlert('QR kod tarandı!', 'success');
+                                    qrScannerContainer.classList.add('hidden'); // Tarayıcı konteynerini gizle
+                                }
+                            },
+                            (errorMessage) => {
+                                // Hata durumunda (isteğe bağlı)
+                                // console.log(`QR Tarama Hatası: ${errorMessage}`);
+                            })
+                        .catch((err) => {
+                            showAlert('Kamera başlatılırken hata oluştu: ' + err, 'error');
+                            console.error("QR tarayıcı başlatılırken hata:", err);
+                        });
+                } else {
+                    showAlert('Kamera bulunamadı.', 'error');
+                    qrScannerContainer.classList.add('hidden');
+                }
+            }).catch(err => {
+                showAlert('Kamera erişim hatası: ' + err, 'error');
+                qrScannerContainer.classList.add('hidden');
+            });
+        }
+
+        // Tarayıcı girişinden ID ile Listeyi Görüntüle
+        function viewListById() {
+            const listId = document.getElementById('list-id-input').value.trim();
+            if (listId) {
+                loadPublicList(listId); // Genel listeyi yükle
+            } else {
+                showAlert('Lütfen bir Liste ID girin veya QR kod tarayın.', 'error');
+            }
+        }
+
+        // İletişim Formu İşleyici
+        async function handleContactForm(e) {
+            e.preventDefault();
+            const name = document.getElementById('contact-name').value;
+            const email = document.getElementById('contact-email').value;
+            const subject = document.getElementById('contact-subject').value;
+            const message = document.getElementById('contact-message').value;
+
+            try {
+                // Bu verileri normalde bir arka uç sunucusuna gönderirsiniz
+                // veya EmailJS, Formspree gibi bir hizmet kullanırsınız.
+                // Şimdilik sadece başarıyı simüle edeceğiz.
+                console.log('İletişim Formu Verileri:', { name, email, subject, message });
+
+                showAlert('Mesajınız başarıyla gönderildi!', 'success');
+                contactForm.reset(); // Formu temizle
+            } catch (error) {
+                showAlert('Mesaj gönderilirken bir hata oluştu: ' + error.message, 'error');
+                console.error("İletişim formu hatası: ", error);
+            }
+        }
+    </script>
+</body>
+</html>
