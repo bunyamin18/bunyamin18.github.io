@@ -475,8 +475,13 @@ async function addItem() {
     } else if (currentListType === 'todo') {
         item.priority = document.getElementById('itemPriority').value;
     } else if (currentListType === 'lab') {
-        item.quantity = parseFloat(document.getElementById('itemQuantity').value) || 0;
-        item.value = parseFloat(document.getElementById('itemValue').value) || 0;
+        // Değerleri doğrudan al, resim yüklemeden önce
+        const quantityValue = document.getElementById('itemQuantity').value;
+        const valueAmount = document.getElementById('itemValue').value;
+        
+        // Sayısal değerlere dönüştür (nokta veya virgül için)
+        item.quantity = parseFloat(quantityValue.replace(',', '.')) || 0;
+        item.value = parseFloat(valueAmount.replace(',', '.')) || 0;
     }
 
     // Handle item image
