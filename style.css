@@ -1340,3 +1340,47 @@ margin-bottom: 1rem;
         background: white;
     }
 }
+.menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--text-color);
+    font-size: 1.5rem;
+    cursor: pointer;
+    margin-left: 15px;
+    padding: 5px;
+    border-radius: 4px;
+    transition: background 0.2s ease;
+}
+
+.menu-toggle:hover {
+    background: var(--hover-color);
+}
+
+.menu-toggle:focus {
+    outline: none;
+}
+
+.nav-brand {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: auto;
+    cursor: pointer;
+}
+
+.nav-buttons {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: nowrap;
+    position: relative;
+    z-index: 501;
+    transition: all 0.3s ease;
+}
+
+.nav-buttons.collapsed {
+    display: none;
+}
