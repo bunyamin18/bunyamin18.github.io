@@ -889,365 +889,447 @@ async function saveList() {
 
 // QR Code generation - DÜZELTME
 function generateQRCode(listId) {
-    if (typeof QRCode === 'undefined') {
-        console.error('QRCode library not loaded');
-        showNotification('QR kod oluşturulamadı!', 'error');
+    if (!listId) {
+        console.error('Liste ID bulunamadı');
         return;
     }
 
-    const listUrl = `${window.location.origin}/shared-list.html?id=${listId}`;
-    const qrSection = document.getElementById('qrSection');
-    const qrContainer = document.getElementById('qrCodeContainer');
-    
-    // Clear previous QR code
-    qrContainer.innerHTML = '';
-    
-    // Generate QR code
-    QRCode.toCanvas(qrContainer, listUrl, {
-        width: 256,
-        height: 256,
-        margin: 2,
-        color: {
-            dark: '#000000',
-            light: '#FFFFFF'
+    try {
+        const qrContainer = document.getElementById('qrCodeContainer');
+        const qrSection = document.getElementById('qrSection');
+        
+        if (!qrContainer || !qrSection) {
+            console.error('QR container elementleri bulunamadı');
+            return;
         }
-    }, function (error) {
-        if (error) {
-            console.error('QR kod oluşturma hatası:', error);
-            showNotification('QR kod oluşturulamadı!', 'error');
+
+        qrContainer.innerHTML = '';
+        
+        const shareUrl = `${window.location.origin}${window.location.pathname}?list=${listId}`;
+        console.log('QR URL:', shareUrl);
+
+        if (typeof QRCode !== 'undefined') {
+            QRCode.toCanvas(qrContainer, shareUrl, {
+                width: 256,
+                height: 256,
+                margin: 2,
+                color: {
+                    dark: '#000000',
+                    light: '#FFFFFF'
+                }
+            }, function (error) {
+                if (error) {
+                    console.error('QR kod oluşturma hatası:', error);
+                    qrContainer.innerHTML = '<p style="color: red;">QR kod oluşturulamadı</p>';
+                } else {
+                    console.log('QR kod başarıyla oluşturuldu');
+                    qrSection.style.display = 'block';
+                }
+            });
         } else {
-            console.log('QR kod başarıyla oluşturuldu');
-            qrSection.style.display = 'block';
+            console.error('QRCode kütüphanesi yüklenmedi');
+            qrContainer.innerHTML = '<p style="color: red;">QR kod kütüphanesi yüklenemedi</p>';
         }
-    });
+
+    } catch (error) {
+        console.error('QR kod oluşturma genel hatası:', error);
+        const qrContainer = document.getElementById('qrCodeContainer');
+        if (qrContainer) {
+            qrContainer.innerHTML = '<p style="color: red;">QR kod oluşturulamadı</p>';
+        }
+    }
 }
 
-// Show QR in full page
+// QR sayfası gösterme
 function showQRPage(listId) {
     if (!listId) {
         showNotification('Liste ID bulunamadı!', 'error');
         return;
     }
 
-    if (typeof QRCode === 'undefined') {
-        showNotification('QR kod kütüphanesi yüklenmedi!', 'error');
-        return;
-    }
-
-    const listUrl = `${window.location.origin}/shared-list.html?id=${listId}`;
-    const qrDisplayContainer = document.getElementById('qrDisplayContainer');
-    
-    qrDisplayContainer.innerHTML = '';
-    
-    QRCode.toCanvas(qrDisplayContainer, listUrl, {
-        width: 400,
-        height: 400,
-        margin: 3,
-        color: {
-            dark: '#000000',
-            light: '#FFFFFF'
-        }
-    }, function (error) {
-        if (error) {
-            console.error('QR kod oluşturma hatası:', error);
-            showNotification('QR kod oluşturulamadı!', 'error');
-        } else {
-            showSection('qr-display');
-        }
-    });
-}
-
-// Load user subscription
-async function loadUserSubscription() {
-    if (!currentUser) return;
-
     try {
-        const userDoc = await db.collection('users').doc(currentUser.uid).get();
-        if (userDoc.exists) {
-            const userData = userDoc.data();
-            userSubscription = userData.subscription || 'free';
+        const qrDisplayContainer = document.getElementById('qrDisplayContainer');
+        
+        if (!qrDisplayContainer) {
+            console.error('QR display container bulunamadı');
+            return;
         }
+
+        qrDisplayContainer.innerHTML = '';
+        
+        const shareUrl = `${window.location.origin}${window.location.pathname}?list=${listId}`;
+        
+        if (typeof QRCode !== 'undefined') {
+            QRCode.toCanvas(qrDisplayContainer, shareUrl, {
+                width: 400,
+                height: 400,
+                margin: 3,
+                color: {
+                    dark: '#000000',
+                    light: '#FFFFFF'
+                }
+            }, function (error) {
+                if (error) {
+                    console.error('QR kod oluşturma hatası:', error);
+                    qrDisplayContainer.innerHTML = '<p style="color: red;">QR kod oluşturulamadı</p>';
+                } else {
+                    console.log('QR kod sayfası başarıyla oluşturuldu');
+                    showSection('qr-display');
+                }
+            });
+        } else {
+            console.error('QRCode kütüphanesi yüklenmedi');
+            qrDisplayContainer.innerHTML = '<p style="color: red;">QR kod kütüphanesi yüklenemedi</p>';
+        }
+
     } catch (error) {
-        console.error('Kullanıcı abonelik bilgisi yüklenemedi:', error);
+        console.error('QR sayfası oluşturma hatası:', error);
+        showNotification('QR kod sayfası oluşturulamadı!', 'error');
     }
 }
 
-// Load user lists - DÜZELTME
+// Shared list viewing
+function loadSharedList() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const listId = urlParams.get('list');
+    
+    if (listId) {
+        console.log('Paylaşılan liste yükleniyor:', listId);
+        
+        if (!isFirebaseReady || !db) {
+            console.log('Firebase henüz hazır değil, tekrar denenecek...');
+            setTimeout(() => loadSharedList(), 1000);
+            return;
+        }
+
+        db.collection('lists').doc(listId).get().then((doc) => {
+            if (doc.exists) {
+                const listData = doc.data();
+                displaySharedList(listData);
+            } else {
+                showNotification('Liste bulunamadı!', 'error');
+            }
+        }).catch((error) => {
+            console.error('Paylaşılan liste yükleme hatası:', error);
+            showNotification('Liste yüklenirken hata oluştu!', 'error');
+        });
+    }
+}
+
+function displaySharedList(listData) {
+    currentItems = listData.items || [];
+    currentListType = listData.type;
+    currentListId = null;
+    
+    document.getElementById('listName').value = listData.name;
+    
+    setupCreateListSection(listData.type);
+    
+    if (listData.image) {
+        document.getElementById('imagePreview').innerHTML = `
+            <div class="image-preview-container">
+                <img src="${listData.image}" alt="Liste Resmi" class="preview-image">
+            </div>
+        `;
+    }
+    
+    const saveButton = document.querySelector('.save-btn');
+    if (saveButton) {
+        saveButton.style.display = 'none';
+    }
+    
+    const qrSection = document.getElementById('qrSection');
+    if (qrSection) {
+        qrSection.style.display = 'none';
+    }
+    
+    showSection('create-list');
+    showNotification('Paylaşılan liste yüklendi! 📋', 'success');
+}
+
+// Lists management
 async function loadUserLists() {
     if (!currentUser) {
-        document.getElementById('listsContainer').innerHTML = '<p class="error">Giriş yapmalısınız!</p>';
+        document.getElementById('listsContainer').innerHTML = '<p class="error">Listelerinizi görmek için giriş yapın.</p>';
         return;
     }
 
     try {
-        document.getElementById('listsContainer').innerHTML = '<p class="loading">Listeler yükleniyor...</p>';
-        
         const listsSnapshot = await db.collection('lists')
             .where('userId', '==', currentUser.uid)
             .orderBy('createdAt', 'desc')
             .get();
 
-        if (listsSnapshot.empty) {
-            document.getElementById('listsContainer').innerHTML = '<p class="no-items">Henüz liste oluşturmadınız.</p>';
-            return;
-        }
-
-        const lists = [];
-        listsSnapshot.forEach(doc => {
-            lists.push({
-                id: doc.id,
-                ...doc.data()
-            });
-        });
-
-        renderUserLists(lists);
-
+        displayUserLists(listsSnapshot.docs);
     } catch (error) {
         console.error('Listeler yüklenirken hata:', error);
-        document.getElementById('listsContainer').innerHTML = '<p class="error">Listeler yüklenirken hata oluştu!</p>';
+        document.getElementById('listsContainer').innerHTML = '<p class="error">Listeler yüklenirken hata oluştu.</p>';
     }
 }
 
-function renderUserLists(lists) {
+function displayUserLists(lists) {
     const container = document.getElementById('listsContainer');
     
-    if (!lists || lists.length === 0) {
-        container.innerHTML = '<p class="no-items">Liste bulunamadı.</p>';
-        return;
-    }
-
-    // Filter lists based on currentFilter
-    const filteredLists = currentFilter === 'all' ? lists : lists.filter(list => list.type === currentFilter);
-
-    if (filteredLists.length === 0) {
-        container.innerHTML = '<p class="no-items">Bu kategoride liste bulunamadı.</p>';
+    if (lists.length === 0) {
+        container.innerHTML = '<p class="no-items">Henüz liste oluşturmadınız. <a href="#" onclick="checkAuthAndRedirect(\'create-list\')">İlk listenizi oluşturun!</a></p>';
         return;
     }
 
     let html = '';
-    filteredLists.forEach(list => {
-        const typeNames = {
-            shopping: '🛒 Alışveriş',
-            todo: '✅ Yapılacaklar',
-            laboratory: '🧪 Laboratuvar'
-        };
-
-        const createdDate = list.createdAt ? new Date(list.createdAt.toDate()).toLocaleDateString('tr-TR') : 'Bilinmiyor';
-        const itemCount = list.items ? list.items.length : 0;
-
-        html += `
-            <div class="list-card" onclick="editList('${list.id}')">
-                <h3>${list.name}</h3>
-                <div class="list-type">${typeNames[list.type] || list.type}</div>
-                <div class="list-date">📅 ${createdDate}</div>
-                <div class="list-items-count">📦 ${itemCount} öğe</div>
-                <div style="margin-top: 1rem;">
-                    <button onclick="event.stopPropagation(); showQRPage('${list.id}')" class="form-button compact" style="margin-right: 0.5rem;">🔗 QR</button>
-                    <button onclick="event.stopPropagation(); deleteList('${list.id}')" class="form-button danger compact">🗑️</button>
-                </div>
-            </div>
-        `;
-    });
-
-    container.innerHTML = html;
-}
-
-function setListFilter(filter) {
-    currentFilter = filter;
     
-    // Update filter buttons
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    event.target.classList.add('active');
-    
-    // Reload lists with new filter
-    loadUserLists();
-}
+    lists.forEach(doc => {
+        const list = doc.data();
+        const listId = doc.id;
+        
+        if (currentFilter === 'all' || currentFilter === list.type) {
+            const createdDate = list.createdAt ? new Date(list.createdAt.toDate()).toLocaleDateString('tr-TR') : 'Bilinmiyor';
+            const itemCount = list.items ? list.items.length : 0;
+            
+            const typeEmojis = {
+                shopping: '🛒',
+                todo: '✅',
+                laboratory: '🧪'
+            };
+            
+            const typeNames = {
+                shopping: 'Alışveriş',
+                todo: 'Yapılacaklar',
+                laboratory: 'Laboratuvar'
+            };
 
-// Edit list
-async function editList(listId) {
-    try {
-        const listDoc = await db.collection('lists').doc(listId).get();
-        
-        if (!listDoc.exists) {
-            showNotification('Liste bulunamadı!', 'error');
-            return;
-        }
-
-        const listData = listDoc.data();
-        
-        // Set current list data
-        currentListId = listId;
-        currentListType = listData.type;
-        currentItems = listData.items || [];
-
-        // Setup form for editing
-        setupCreateListSection(listData.type);
-        
-        // Fill form data
-        document.getElementById('listName').value = listData.name || '';
-        
-        if (listData.image) {
-            document.getElementById('imagePreview').innerHTML = `
-                <div class="image-preview-container">
-                    <img src="${listData.image}" alt="Liste Resmi" class="preview-image">
-                    <button type="button" onclick="clearListImage()" class="remove-image-btn">❌</button>
+            html += `
+                <div class="list-card" onclick="editList('${listId}')">
+                    <h3>${typeEmojis[list.type]} ${list.name}</h3>
+                    <div class="list-type">${typeNames[list.type]}</div>
+                    <div class="list-date">${createdDate}</div>
+                    <div class="list-items-count">${itemCount} öğe</div>
+                    <div style="margin-top: 1rem;">
+                        <button onclick="event.stopPropagation(); editList('${listId}')" class="form-button" style="margin-right: 0.5rem; padding: 0.5rem 1rem; font-size: 0.8rem;">✏️ Düzenle</button>
+                        <button onclick="event.stopPropagation(); showQRPage('${listId}')" class="form-button secondary" style="margin-right: 0.5rem; padding: 0.5rem 1rem; font-size: 0.8rem;">🔗 QR</button>
+                        <button onclick="event.stopPropagation(); deleteList('${listId}')" class="form-button danger" style="padding: 0.5rem 1rem; font-size: 0.8rem;">🗑️ Sil</button>
+                    </div>
                 </div>
             `;
         }
+    });
+    
+    if (html === '') {
+        container.innerHTML = '<p class="no-items">Bu kategoride liste bulunamadı.</p>';
+    } else {
+        container.innerHTML = html;
+    }
+}
 
-        // Show create section
-        showSection('create-list');
+async function editList(listId) {
+    try {
+        const doc = await db.collection('lists').doc(listId).get();
         
-        // Update title
-        document.getElementById('createListTitle').textContent = `📝 ${listData.name} - Düzenle`;
-
+        if (doc.exists) {
+            const listData = doc.data();
+            
+            currentListId = listId;
+            currentListType = listData.type;
+            currentItems = listData.items || [];
+            
+            document.getElementById('listName').value = listData.name;
+            
+            if (listData.image) {
+                document.getElementById('imagePreview').innerHTML = `
+                    <div class="image-preview-container">
+                        <img src="${listData.image}" alt="Liste Resmi" class="preview-image">
+                        <button type="button" onclick="clearListImage()" class="remove-image-btn">❌</button>
+                    </div>
+                `;
+            }
+            
+            setupCreateListSection(listData.type);
+            showSection('create-list');
+            showNotification('Liste düzenleme modunda açıldı!', 'info');
+        } else {
+            showNotification('Liste bulunamadı!', 'error');
+        }
     } catch (error) {
-        console.error('Liste düzenleme hatası:', error);
+        console.error('Liste yükleme hatası:', error);
         showNotification('Liste yüklenirken hata oluştu!', 'error');
     }
 }
 
-// Delete list
 async function deleteList(listId) {
-    if (!confirm('Bu listeyi silmek istediğinizden emin misiniz?')) {
+    if (!confirm('Bu listeyi silmek istediğinize emin misiniz?')) {
         return;
     }
 
     try {
         await db.collection('lists').doc(listId).delete();
         showNotification('Liste silindi!', 'success');
-        loadUserLists(); // Reload lists
+        loadUserLists();
     } catch (error) {
         console.error('Liste silme hatası:', error);
         showNotification('Liste silinirken hata oluştu!', 'error');
     }
 }
 
-// Account info
-function updateAccountInfo() {
+function setListFilter(filter) {
+    currentFilter = filter;
+    
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    event.target.classList.add('active');
+    
+    loadUserLists();
+}
+
+// Account management
+async function loadUserSubscription() {
+    try {
+        const userDoc = await db.collection('users').doc(currentUser.uid).get();
+        
+        if (userDoc.exists) {
+            const userData = userDoc.data();
+            userSubscription = userData.subscription || 'free';
+        } else {
+            await db.collection('users').doc(currentUser.uid).set({
+                email: currentUser.email,
+                subscription: 'free',
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            userSubscription = 'free';
+        }
+        
+        updateAccountInfo();
+    } catch (error) {
+        console.error('Kullanıcı abonelik bilgisi yüklenirken hata:', error);
+    }
+}
+
+async function updateAccountInfo() {
     if (!currentUser) return;
 
     document.getElementById('accountEmail').textContent = currentUser.email;
     document.getElementById('accountType').textContent = userSubscription === 'premium' ? 'Premium' : 'Ücretsiz';
     
-    const createdDate = currentUser.metadata.creationTime ? 
-        new Date(currentUser.metadata.creationTime).toLocaleDateString('tr-TR') : 'Bilinmiyor';
-    document.getElementById('accountCreated').textContent = createdDate;
+    if (currentUser.metadata.creationTime) {
+        const creationDate = new Date(currentUser.metadata.creationTime).toLocaleDateString('tr-TR');
+        document.getElementById('accountCreated').textContent = creationDate;
+    }
 
-    // Load list count
-    if (isFirebaseReady) {
-        db.collection('lists')
+    try {
+        const listsSnapshot = await db.collection('lists')
             .where('userId', '==', currentUser.uid)
-            .get()
-            .then(snapshot => {
-                document.getElementById('accountListCount').textContent = snapshot.size;
-            })
-            .catch(error => {
-                console.error('Liste sayısı yüklenemedi:', error);
-            });
+            .get();
+        
+        document.getElementById('accountListCount').textContent = listsSnapshot.size;
+    } catch (error) {
+        console.error('Liste sayısı yüklenirken hata:', error);
+        document.getElementById('accountListCount').textContent = 'Hata';
     }
 }
 
-// Premium upgrade
 function upgradeToPremium() {
     showNotification('Premium üyelik özelliği yakında aktif olacak! 🚀', 'info');
 }
 
-// Contact form functions
+// Contact form management
+function setupContactFormListeners() {
+    const contactForm = document.getElementById('contactForm');
+    const contactFormHome = document.getElementById('contactFormHome');
+
+    if (contactForm) {
+        contactForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await sendContactMessage('contactForm');
+        });
+    }
+
+    if (contactFormHome) {
+        contactFormHome.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await sendContactMessage('contactFormHome');
+        });
+    }
+}
+
+async function sendContactMessage(formId) {
+    if (!isEmailJSReady) {
+        showNotification('E-posta servisi henüz hazır değil, lütfen bekleyin...', 'warning');
+        return;
+    }
+
+    const isHomeForm = formId === 'contactFormHome';
+    const nameField = isHomeForm ? 'contactNameHome' : 'contactName';
+    const emailField = isHomeForm ? 'contactEmailHome' : 'contactEmail';
+    const messageField = isHomeForm ? 'contactMessageHome' : 'contactMessage';
+
+    const name = document.getElementById(nameField).value.trim();
+    const email = document.getElementById(emailField).value.trim();
+    const message = document.getElementById(messageField).value.trim();
+
+    if (!name || !email || !message) {
+        showNotification('Lütfen tüm alanları doldurun!', 'warning');
+        return;
+    }
+
+    try {
+        showNotification('Mesajınız gönderiliyor...', 'info');
+
+        const templateParams = {
+            from_name: name,
+            from_email: email,
+            message: message,
+            to_email: 'denizkamranberber@gmail.com'
+        };
+
+        const response = await emailjs.send(
+            EMAILJS_SERVICE_ID,
+            EMAILJS_TEMPLATE_ID,
+            templateParams
+        );
+
+        if (response.status === 200) {
+            showNotification('Mesajınız başarıyla gönderildi! 📧', 'success');
+            document.getElementById(formId).reset();
+        } else {
+            throw new Error('E-posta gönderimi başarısız');
+        }
+
+    } catch (error) {
+        console.error('E-posta gönderme hatası:', error);
+        showNotification('Mesaj gönderilemedi. Lütfen daha sonra tekrar deneyin.', 'error');
+    }
+}
+
 function prefillContactForm() {
     if (currentUser) {
-        const emailField = document.getElementById('contactEmail');
-        const nameField = document.getElementById('contactName');
-        
-        if (emailField) emailField.value = currentUser.email;
-        if (nameField && currentUser.displayName) nameField.value = currentUser.displayName;
+        const emailInput = document.getElementById('contactEmail');
+        if (emailInput) {
+            emailInput.value = currentUser.email;
+        }
     }
 }
 
 function prefillContactFormHome() {
     if (currentUser) {
-        const emailField = document.getElementById('contactEmailHome');
-        const nameField = document.getElementById('contactNameHome');
-        
-        if (emailField) emailField.value = currentUser.email;
-        if (nameField && currentUser.displayName) nameField.value = currentUser.displayName;
+        const emailInput = document.getElementById('contactEmailHome');
+        if (emailInput) {
+            emailInput.value = currentUser.email;
+        }
     }
 }
 
-// Contact form submissions - DÜZELTME
-document.getElementById('contactForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
+// Notifications
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
     
-    if (!isEmailJSReady) {
-        showNotification('E-posta servisi hazır değil, lütfen bekleyin...', 'warning');
-        return;
-    }
-
-    const name = document.getElementById('contactName').value;
-    const email = document.getElementById('contactEmail').value;
-    const message = document.getElementById('contactMessage').value;
-
-    try {
-        showNotification('Mesaj gönderiliyor...', 'info');
-        
-        const result = await emailjs.send(
-            EMAILJS_SERVICE_ID,
-            EMAILJS_TEMPLATE_ID,
-            {
-                from_name: name,
-                from_email: email,
-                message: message,
-                to_email: 'dursungorgun5@gmail.com'
-            }
-        );
-
-        console.log('EmailJS result:', result);
-        showNotification('Mesajınız başarıyla gönderildi! 🎉', 'success');
-        document.getElementById('contactForm').reset();
-        
-    } catch (error) {
-        console.error('E-posta gönderme hatası:', error);
-        showNotification('Mesaj gönderilemedi: ' + error.text || error.message, 'error');
-    }
-});
-
-document.getElementById('contactFormHome').addEventListener('submit', async (e) => {
-    e.preventDefault();
+    document.body.appendChild(notification);
     
-    if (!isEmailJSReady) {
-        showNotification('E-posta servisi hazır değil, lütfen bekleyin...', 'warning');
-        return;
-    }
-
-    const name = document.getElementById('contactNameHome').value;
-    const email = document.getElementById('contactEmailHome').value;
-    const message = document.getElementById('contactMessageHome').value;
-
-    try {
-        showNotification('Mesaj gönderiliyor...', 'info');
-        
-        const result = await emailjs.send(
-            EMAILJS_SERVICE_ID,
-            EMAILJS_TEMPLATE_ID,
-            {
-                from_name: name,
-                from_email: email,
-                message: message,
-                to_email: 'dursungorgun5@gmail.com'
-            }
-        );
-
-        console.log('EmailJS result:', result);
-        showNotification('Mesajınız başarıyla gönderildi! 🎉', 'success');
-        document.getElementById('contactFormHome').reset();
-        
-    } catch (error) {
-        console.error('E-posta gönderme hatası:', error);
-        showNotification('Mesaj gönderilemedi: ' + error.text || error.message, 'error');
-    }
-});
+    setTimeout(() => {
+        notification.remove();
+    }, 5000);
+}
 
 // Ad management
 function closeAd(adId) {
@@ -1257,47 +1339,36 @@ function closeAd(adId) {
     }
 }
 
-// Notification system
-function showNotification(message, type = 'info') {
-    // Remove existing notifications
-    document.querySelectorAll('.notification').forEach(notification => {
-        notification.remove();
-    });
-
-    const notification = document.createElement('div');
-    notification.className = `notification ${type}`;
-    notification.textContent = message;
-
-    document.body.appendChild(notification);
-
-    // Auto remove after 5 seconds
-    setTimeout(() => {
-        if (notification.parentElement) {
-            notification.remove();
-        }
-    }, 5000);
+// QR Code library check
+function checkQRCodeLibrary() {
+    if (typeof QRCode === 'undefined') {
+        console.error('QRCode kütüphanesi yüklenemedi, yeniden deniyor...');
+        setTimeout(checkQRCodeLibrary, 1000);
+    } else {
+        console.log('QRCode kütüphanesi başarıyla yüklendi');
+    }
 }
 
-// Initialize app
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded, initializing app...');
-    
-    // Initialize theme
+// Page load events
+window.onload = function() {
     initializeTheme();
-    
-    // Initialize Firebase
     initializeFirebase();
-    
-    // Initialize EmailJS
     initializeEmailJS();
+    checkQRCodeLibrary();
     
-    // Show home section by default
-    showSection('home');
+    setupContactFormListeners();
     
-    console.log('App initialization complete');
-});
-
-// Handle page load
-window.addEventListener('load', function() {
-    console.log('Page fully loaded');
-});
+    setTimeout(() => {
+        loadSharedList();
+    }, 2000);
+    
+    setTimeout(() => {
+        const ads = ['topAdBanner', 'sideAd', 'footerAdBanner'];
+        ads.forEach(adId => {
+            const ad = document.getElementById(adId);
+            if (ad && Math.random() > 0.7) {
+                ad.style.display = 'none';
+            }
+        });
+    }, 5000);
+};
