@@ -252,24 +252,33 @@ function showAuthTab(tab) {
 }
 
 // Auth event listeners
-document.getElementById('loginForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email = document.getElementById('loginEmail').value;
-    const password = document.getElementById('loginPassword').value;
+const loginForm = document.getElementById('loginForm');
+if (loginForm) {
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('loginEmail').value;
+        const password = document.getElementById('loginPassword').value;
 
-    try {
-        await auth.signInWithEmailAndPassword(email, password);
-
-        if (!currentUser.emailVerified) {
-            showEmailVerification();
-        } else {
-            showSection('home');
-            showNotification('Hoş geldiniz! 🎉', 'success');
+        try {
+            const userCredential = await auth.signInWithEmailAndPassword(email, password);
+            const user = userCredential.user;
+            
+            // Oturumu yenile ve e-posta doğrulamasını kontrol et
+            await user.reload();
+            
+            if (!user.emailVerified) {
+                showEmailVerification();
+                showNotification('Devam etmek için lütfen e-postanızı doğrulayın!', 'warning');
+            } else {
+                showSection('home');
+                showNotification('Hoş geldiniz! 🎉', 'success');
+            }
+        } catch (error) {
+            console.error('Giriş hatası:', error);
+            showNotification('Giriş hatası: ' + error.message, 'error');
         }
-    } catch (error) {
-        showNotification('Giriş hatası: ' + error.message, 'error');
-    }
-});
+    });
+}
 
 document.getElementById('registerForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -314,6 +323,7 @@ function showEmailVerification() {
 }
 
 function checkEmailVerification() {
+    // Kullanıcı oturumunu yenile
     auth.currentUser.reload().then(() => {
         if (auth.currentUser.emailVerified) {
             showSection('home');
@@ -321,6 +331,9 @@ function checkEmailVerification() {
         } else {
             showNotification('E-posta henüz doğrulanmadı. Lütfen e-postanızı kontrol edin.', 'warning');
         }
+    }).catch(error => {
+        console.error('Kullanıcı durumu kontrol edilemedi:', error);
+        showNotification('Kullanıcı durumu kontrol edilemedi. Lütfen tekrar giriş yapın.', 'error');
     });
 }
 
@@ -1679,14 +1692,37 @@ async function loadSharedList(listId) {
 }
 
 // Initialize app
+// Initialize app
 document.addEventListener('DOMContentLoaded', () => {
     // Wait a bit for all scripts to load
     setTimeout(() => {
         initializeTheme();
         initializeFirebase();
         initializeEmailJS();
+        hideClosedAds(); // Kapatılan reklamları gizle
+        
+        // Logo tıklama davranışını ayarla
+        const navBrand = document.querySelector('.nav-brand h1');
+        if (navBrand) {
+            navBrand.style.cursor = 'pointer';
+            navBrand.addEventListener('click', function() {
+                showSection('home');
+            });
+        }
+        
+        // İletişim formlarını initialize et
+        const contactFormHome = document.getElementById('contactFormHome');
+        if (contactFormHome) {
+            contactFormHome.addEventListener('submit', handleContactFormSubmit);
+        }
+
+        // İletişim sayfası formu
+        const contactForm = document.getElementById('contactForm');
+        if (contactForm) {
+            contactForm.addEventListener('submit', handleContactFormSubmit);
+        }
+        
         showSection('home');
-        updateItemsList();
 
         // Add CSS for notifications
         const style = document.createElement('style');
@@ -1699,3 +1735,67 @@ document.addEventListener('DOMContentLoaded', () => {
         document.head.appendChild(style);
     }, 500);
 });
+// İletişim formu gönderme fonksiyonu
+async function handleContactFormSubmit(e) {
+    e.preventDefault();
+    
+    // Form verilerini al
+    const form = e.target;
+    const nameField = form.querySelector('input[type="text"]');
+    const emailField = form.querySelector('input[type="email"]');
+    const subjectField = form.querySelector('select');
+    const messageField = form.querySelector('textarea');
+    
+    if (!nameField || !emailField || !subjectField || !messageField) {
+        showNotification('Form alanları bulunamadı!', 'error');
+        return;
+    }
+    
+    const name = nameField.value;
+    const email = emailField.value;
+    const subject = subjectField.value;
+    const message = messageField.value;
+    
+    // Form doğrulama
+    if (!name || !email || !subject || !message) {
+        showNotification('Lütfen tüm alanları doldurun!', 'warning');
+        return;
+    }
+    
+    showNotification('Mesajınız gönderiliyor...', 'info');
+    
+    try {
+        if (!isEmailJSReady) {
+            // EmailJS henüz hazır değilse başlatmayı dene
+            emailjs.init(EMAILJS_PUBLIC_KEY);
+            isEmailJSReady = true;
+        }
+        
+        // Mesajı gönder
+        await emailjs.send(
+            EMAILJS_SERVICE_ID, 
+            EMAILJS_TEMPLATE_ID,
+            {
+                from_name: name,
+                from_email: email,
+                subject: subject,
+                message: message
+            }
+        );
+        
+        showNotification('Mesajınız başarıyla gönderildi! 📧', 'success');
+        form.reset();
+        
+        // Oturum açmışsa formu önceden doldur
+        if (currentUser) {
+            if (form.id === 'contactForm') {
+                prefillContactForm();
+            } else {
+                prefillContactFormHome();
+            }
+        }
+    } catch (error) {
+        console.error('Mesaj gönderme hatası:', error);
+        showNotification('Mesaj gönderilemedi: ' + error.message + '. Lütfen doğrudan ebunyamin0@gmail.com adresine e-posta gönderiniz.', 'error');
+    }
+}
