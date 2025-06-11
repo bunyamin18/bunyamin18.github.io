@@ -517,8 +517,6 @@ function updateItemsList() {
 
     itemsList.innerHTML = '';
 
-    let totalValue = 0;
-
     currentItems.forEach(item => {
         const li = document.createElement('li');
         li.className = item.completed ? 'completed' : '';
@@ -552,7 +550,6 @@ function updateItemsList() {
             `;
         } else if (currentListType === 'lab') {
             const itemTotal = item.quantity * item.value;
-            totalValue += itemTotal;
             content = `
                 ${item.image ? `<img src="${item.image}" alt="${item.name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 5px; margin-right: 10px;">` : ''}
                 <div class="item-content-lab">
@@ -567,6 +564,8 @@ function updateItemsList() {
         itemsList.appendChild(li);
     });
 
+    // Not displaying total row for lab lists anymore
+}
     // Show total for lab lists
     if (currentListType === 'lab' && currentItems.length > 0) {
         const totalLi = document.createElement('li');
