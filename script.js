@@ -429,8 +429,8 @@ function setupCreateListSection(type) {
             inputSection.innerHTML = `
                 <div class="item-input-row-lab">
                     <input type="text" id="itemName" placeholder="Malzeme adı" class="form-input">
-                    <input type="number" id="itemQuantity" placeholder="Miktar" class="form-input">
-                    <input type="number" id="itemValue" placeholder="Değer (₺)" step="0.01" class="form-input">
+                    <input type="number" id="itemQuantity" placeholder="Miktar" step="any" inputmode="decimal" class="form-input">
+                    <input type="number" id="itemValue" placeholder="Değer (₺)" step="any" inputmode="decimal" class="form-input">
                     <label for="itemImage" class="image-label-small">📷 
                         <input type="file" id="itemImage" accept="image/*" style="display:none;">
                     </label>
@@ -441,8 +441,17 @@ function setupCreateListSection(type) {
     }
 
     updateItemsList();
+    
+    // Klavye giriş olaylarını ekle
+    if (type === 'lab') {
+        document.addEventListener('input', function(e) {
+            if (e.target && (e.target.id === 'itemQuantity' || e.target.id === 'itemValue')) {
+                // Sadece sayısal değerlere ve noktalama işaretlerine izin ver
+                e.target.value = e.target.value.replace(/[^0-9.,]/g, '');
+            }
+        });
+    }
 }
-
 // List management functions
 async function addItem() {
     const itemName = document.getElementById('itemName').value.trim();
