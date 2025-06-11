@@ -444,20 +444,27 @@ function selectListType(type) {
 function setupLabInputListeners() {
     // Bu fonksiyon laboratuvar formu oluşturulduğunda çağrılacak
     setTimeout(() => {
+        const nameInput = document.getElementById('itemName');
         const quantityInput = document.getElementById('itemQuantity');
         const valueInput = document.getElementById('itemValue');
+        
+        if (nameInput && currentListType === 'laboratory') {
+            nameInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const nextInput = document.getElementById('itemQuantity');
+                    if (nextInput) nextInput.focus();
+                }
+            });
+        }
         
         if (quantityInput && currentListType === 'laboratory') {
             quantityInput.addEventListener('keydown', function(e) {
                 if (e.key === 'Enter') {
                     e.preventDefault();
-                    addItem();
+                    const nextInput = document.getElementById('itemValue');
+                    if (nextInput) nextInput.focus();
                 }
-            });
-            
-            quantityInput.addEventListener('input', function(e) {
-                // Sadece sayı ve nokta karakterlerine izin ver
-                this.value = this.value.replace(/[^0-9.]/g, '');
             });
         }
         
@@ -467,11 +474,6 @@ function setupLabInputListeners() {
                     e.preventDefault();
                     addItem();
                 }
-            });
-            
-            valueInput.addEventListener('input', function(e) {
-                // Sadece sayı ve nokta karakterlerine izin ver
-                this.value = this.value.replace(/[^0-9.]/g, '');
             });
         }
     }, 100);
@@ -519,13 +521,13 @@ function setupCreateListSection(type) {
 
         case 'laboratory':
             title.textContent = '🧪 Laboratuvar Listesi Oluştur';
-            itemsSectionTitle.textContent = '🔬 Malzemeler';
+            itemsSectionTitle.textContent = '⚡ Elektronik Komponentler';
             addItemForm.innerHTML = `
-                <h4>Malzeme Ekle</h4>
+                <h4>Komponent Ekle</h4>
                 <div class="form-row">
-                    <input type="text" id="itemName" placeholder="Malzeme adı" class="form-input" required>
-                    <input type="number" id="itemQuantity" placeholder="Miktar" class="form-input" step="0.01" min="0">
-                    <input type="number" id="itemValue" placeholder="Birim Fiyat (₺)" class="form-input" step="0.01" min="0">
+                    <input type="text" id="itemName" placeholder="Birim İsmi (örn: 100Ω Direnç)" class="form-input" required>
+                    <input type="text" id="itemQuantity" placeholder="Miktar (örn: 5 adet)" class="form-input">
+                    <input type="text" id="itemValue" placeholder="Değer (örn: 100Ω, 5V)" class="form-input">
                     <input type="file" id="itemImage" accept="image/*" class="form-input" onchange="previewItemImage()">
                     <button type="button" onclick="addItem()" class="form-button add-btn">➕ Ekle</button>
                 </div>
@@ -595,18 +597,6 @@ function addItem() {
         return;
     }
 
-    // Laboratuvar listesi için değerleri önce al
-    let quantityValue = 0;
-    let valueInputValue = 0;
-    
-    if (currentListType === 'laboratory') {
-        const quantityInput = document.getElementById('itemQuantity');
-        const valueInput = document.getElementById('itemValue');
-        
-        quantityValue = quantityInput ? parseFloat(quantityInput.value) || 0 : 0;
-        valueInputValue = valueInput ? parseFloat(valueInput.value) || 0 : 0;
-    }
-
     const item = {
         id: Date.now(),
         name: name,
@@ -627,10 +617,11 @@ function addItem() {
             break;
 
         case 'laboratory':
-            // Önceden alınan değerleri kullan
-            item.quantity = quantityValue;
-            item.value = valueInputValue;
-            item.total = quantityValue * valueInputValue;
+            const quantityInput = document.getElementById('itemQuantity');
+            const valueInput = document.getElementById('itemValue');
+            
+            item.quantity = quantityInput ? quantityInput.value : '';
+            item.value = valueInput ? valueInput.value : '';
             break;
     }
 
@@ -671,6 +662,11 @@ function clearItemForm() {
     
     document.getElementById('itemImage').value = '';
     document.getElementById('itemImagePreview').innerHTML = '';
+    
+    // Focus'u ilk input'a geri getir
+    if (currentListType === 'laboratory') {
+        document.getElementById('itemName').focus();
+    }
 }
 
 function renderItems() {
@@ -714,14 +710,10 @@ function renderItems() {
                 break;
 
             case 'laboratory':
-                // Laboratuvar listesi için toplam maliyet gösterme kaldırıldı
-                const itemTotal = item.quantity * item.value;
-                
                 itemHtml += `
                     <div class="item-lab-details">
-                        <span>Miktar: ${item.quantity}</span>
-                        <span>Birim Fiyat: ₺${item.value.toFixed(2)}</span>
-                        <span>Toplam: ₺${itemTotal.toFixed(2)}</span>
+                        ${item.quantity ? `<span>Miktar: ${item.quantity}</span>` : ''}
+                        ${item.value ? `<span>Değer: ${item.value}</span>` : ''}
                     </div>
                 `;
                 break;
@@ -742,7 +734,6 @@ function renderItems() {
         html += itemHtml;
     });
 
-    // Toplam maliyet gösterme tamamen kaldırıldı
     itemsList.innerHTML = html;
 }
 
@@ -832,85 +823,85 @@ async function saveToDB(listData) {
 
 function generateQRCode(listId) {
     const qrSection = document.getElementById('qrSection');
-    const qrCode = document.getElementById('qrCode');
+    const qrCodeDiv = document.getElementById('qrCode');
     
-    if (qrSection && qrCode) {
-        try {
-            const listUrl = window.location.origin + '/list/' + listId;
-            
-            // Clear previous QR code
-            qrCode.innerHTML = '';
-            
-            // Generate new QR code
-            const qr = new QRious({
-                element: document.createElement('canvas'),
-                value: listUrl,
-                size: 200,
-                background: 'white',
-                foreground: 'black'
-            });
-            
-            qrCode.appendChild(qr.canvas);
-            qrSection.style.display = 'block';
-            
-        } catch (error) {
-            console.error('QR Code generation error:', error);
-            showNotification('QR kod oluşturulamadı', 'warning');
-        }
+    if (qrSection && qrCodeDiv) {
+        const url = `${window.location.origin}?list=${listId}`;
+        
+        // Clear previous QR code
+        qrCodeDiv.innerHTML = '';
+        
+        // Generate new QR code
+        const qr = new QRious({
+            element: document.createElement('canvas'),
+            value: url,
+            size: 200,
+            background: 'white',
+            foreground: 'black'
+        });
+        
+        qrCodeDiv.appendChild(qr.canvas);
+        qrSection.style.display = 'block';
     }
 }
 
 // User subscription management
 async function loadUserSubscription() {
     if (!currentUser) return;
-
+    
     try {
         const userDoc = await db.collection('users').doc(currentUser.uid).get();
         if (userDoc.exists) {
             const userData = userDoc.data();
             userSubscription = userData.subscription || 'free';
-        } else {
-            // Create user document
-            await db.collection('users').doc(currentUser.uid).set({
-                email: currentUser.email,
-                name: currentUser.displayName || '',
-                subscription: 'free',
-                createdAt: new Date()
-            });
-            userSubscription = 'free';
         }
     } catch (error) {
-        console.error('Load subscription error:', error);
-        userSubscription = 'free';
+        console.error('Error loading user subscription:', error);
     }
 }
 
-// My Lists functionality
+// List filtering
+function filterLists(filterType) {
+    currentFilter = filterType;
+    
+    // Update filter buttons
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.filter === filterType) {
+            btn.classList.add('active');
+        }
+    });
+    
+    loadUserLists();
+}
+
 async function loadUserLists() {
-    if (!currentUser) {
-        showNotification('Giriş yapmalısınız!', 'error');
+    if (!isFirebaseReady || !currentUser) {
         return;
     }
 
     try {
-        const listsQuery = db.collection('lists')
-            .where('userId', '==', currentUser.uid)
-            .orderBy('updatedAt', 'desc');
-
-        const snapshot = await listsQuery.get();
+        let query = db.collection('lists').where('userId', '==', currentUser.uid);
+        
+        if (currentFilter !== 'all') {
+            query = query.where('type', '==', currentFilter);
+        }
+        
+        const snapshot = await query.orderBy('createdAt', 'desc').get();
         const lists = [];
-
+        
         snapshot.forEach(doc => {
             lists.push({
                 id: doc.id,
                 ...doc.data()
             });
         });
-
+        
         renderUserLists(lists);
+        
     } catch (error) {
-        console.error('Load lists error:', error);
-        showNotification('Listeler yüklenemedi: ' + error.message, 'error');
+        console.error('Error loading lists:', error);
+        showNotification('Listeler yüklenirken hata oluştu: ' + error.message, 'error');
     }
 }
 
@@ -921,265 +912,186 @@ function renderUserLists(lists) {
         container.innerHTML = '<p class="no-lists">Henüz liste oluşturmadınız.</p>';
         return;
     }
-
+    
     let html = '';
-    const filteredLists = currentFilter === 'all' ? lists : lists.filter(list => list.type === currentFilter);
-
-    filteredLists.forEach(list => {
+    lists.forEach(list => {
         const typeIcons = {
             shopping: '🛒',
             todo: '✅',
             laboratory: '🧪'
         };
-
-        const typeNames = {
-            shopping: 'Alışveriş',
-            todo: 'Yapılacaklar',
-            laboratory: 'Laboratuvar'
-        };
-
-        const createdDate = list.createdAt ? new Date(list.createdAt.seconds * 1000).toLocaleDateString() : 'Bilinmiyor';
-        const completedItems = list.items.filter(item => item.completed).length;
-        const totalItems = list.items.length;
-
+        
+        const createdDate = list.createdAt ? new Date(list.createdAt.seconds * 1000).toLocaleDateString('tr-TR') : 'Bilinmiyor';
+        
         html += `
-            <div class="list-card" data-type="${list.type}">
-                ${list.image ? `<img src="${list.image}" alt="${list.name}" class="list-card-image">` : ''}
-                <div class="list-card-content">
-                    <div class="list-card-header">
-                        <h3>${typeIcons[list.type]} ${list.name}</h3>
-                        <span class="list-type-badge">${typeNames[list.type]}</span>
-                    </div>
-                    <div class="list-stats">
-                        <span>📊 ${completedItems}/${totalItems} tamamlandı</span>
-                        <span>📅 ${createdDate}</span>
-                    </div>
-                    <div class="list-actions">
-                        <button onclick="editList('${list.id}')" class="action-btn edit">✏️ Düzenle</button>
-                        <button onclick="shareList('${list.id}')" class="action-btn share">🔗 Paylaş</button>
-                        <button onclick="deleteList('${list.id}')" class="action-btn delete">🗑️ Sil</button>
-                    </div>
+            <div class="list-card" onclick="editList('${list.id}')">
+                <div class="list-header">
+                    <span class="list-type-icon">${typeIcons[list.type]}</span>
+                    <h3>${list.name}</h3>
+                </div>
+                <div class="list-info">
+                    <span>${list.items ? list.items.length : 0} öğe</span>
+                    <span>${createdDate}</span>
+                </div>
+                <div class="list-actions" onclick="event.stopPropagation()">
+                    <button onclick="editList('${list.id}')" class="edit-btn">✏️</button>
+                    <button onclick="deleteList('${list.id}')" class="delete-btn">🗑️</button>
                 </div>
             </div>
         `;
     });
-
+    
     container.innerHTML = html;
-}
-
-function filterLists(filterType) {
-    currentFilter = filterType;
-    
-    // Update filter buttons
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    document.querySelector(`[data-filter="${filterType}"]`).classList.add('active');
-    
-    // Reload lists with filter
-    loadUserLists();
 }
 
 async function editList(listId) {
     try {
-        const listDoc = await db.collection('lists').doc(listId).get();
-        if (listDoc.exists) {
-            const listData = listDoc.data();
+        const doc = await db.collection('lists').doc(listId).get();
+        if (doc.exists) {
+            const listData = doc.data();
             
-            // Set current list data
+            // Set current data
             currentListId = listId;
             currentListType = listData.type;
             currentItems = listData.items || [];
             
-            // Setup and show create list section
+            // Setup the form
             setupCreateListSection(listData.type);
+            
+            // Fill form data
+            document.getElementById('listName').value = listData.name || '';
+            
+            // Show create list section
             showSection('create-list');
             
-            // Fill form with existing data
-            setTimeout(() => {
-                document.getElementById('listName').value = listData.name || '';
-                renderItems();
-            }, 100);
-            
-        } else {
-            showNotification('Liste bulunamadı!', 'error');
+            showNotification('Liste düzenleme modunda açıldı!', 'success');
         }
     } catch (error) {
-        console.error('Edit list error:', error);
-        showNotification('Liste yüklenemedi: ' + error.message, 'error');
-    }
-}
-
-function shareList(listId) {
-    const listUrl = window.location.origin + '/list/' + listId;
-    
-    if (navigator.share) {
-        navigator.share({
-            title: 'Akıllı Liste',
-            text: 'Bu listeyi kontrol edin!',
-            url: listUrl
-        });
-    } else {
-        // Fallback: copy to clipboard
-        navigator.clipboard.writeText(listUrl).then(() => {
-            showNotification('Liste linki kopyalandı! 📋', 'success');
-        }).catch(() => {
-            showNotification('Link: ' + listUrl, 'info');
-        });
+        console.error('Error loading list:', error);
+        showNotification('Liste yüklenirken hata oluştu: ' + error.message, 'error');
     }
 }
 
 async function deleteList(listId) {
-    if (!confirm('Bu listeyi silmek istediğinize emin misiniz?')) {
+    if (!confirm('Bu listeyi silmek istediğinizden emin misiniz?')) {
         return;
     }
-
+    
     try {
         await db.collection('lists').doc(listId).delete();
         showNotification('Liste silindi!', 'success');
-        loadUserLists(); // Reload lists
+        loadUserLists();
     } catch (error) {
-        console.error('Delete list error:', error);
-        showNotification('Silme hatası: ' + error.message, 'error');
+        console.error('Error deleting list:', error);
+        showNotification('Liste silinirken hata oluştu: ' + error.message, 'error');
     }
 }
 
-// Account info
+// Account info management
 function updateAccountInfo() {
     if (!currentUser) return;
-
-    document.getElementById('accountEmail').textContent = currentUser.email || '-';
-    document.getElementById('accountName').textContent = currentUser.displayName || '-';
     
-    const creationTime = currentUser.metadata.creationTime;
-    if (creationTime) {
-        document.getElementById('accountDate').textContent = new Date(creationTime).toLocaleDateString();
-    }
-    
-    const subscriptionNames = {
-        free: '🆓 Ücretsiz',
-        premium: '💎 Premium'
-    };
-    document.getElementById('accountSubscription').textContent = subscriptionNames[userSubscription] || '🆓 Ücretsiz';
+    document.getElementById('accountEmail').textContent = currentUser.email;
+    document.getElementById('accountName').textContent = currentUser.displayName || 'Belirtilmemiş';
+    document.getElementById('accountDate').textContent = currentUser.metadata.creationTime ? 
+        new Date(currentUser.metadata.creationTime).toLocaleDateString('tr-TR') : 'Bilinmiyor';
+    document.getElementById('accountSubscription').textContent = userSubscription === 'premium' ? 'Premium' : 'Ücretsiz';
 }
 
-// Contact form functionality - Düzeltildi
+// Contact form management
 function prefillContactForm() {
     if (currentUser) {
-        const nameField = document.getElementById('contactName');
-        const emailField = document.getElementById('contactEmail');
+        const nameInput = document.getElementById('contactName');
+        const emailInput = document.getElementById('contactEmail');
         
-        if (nameField) nameField.value = currentUser.displayName || '';
-        if (emailField) emailField.value = currentUser.email || '';
+        if (nameInput) nameInput.value = currentUser.displayName || '';
+        if (emailInput) emailInput.value = currentUser.email || '';
     }
 }
 
 function prefillContactFormHome() {
     if (currentUser) {
-        const nameField = document.getElementById('contactNameHome');
-        const emailField = document.getElementById('contactEmailHome');
+        const nameInput = document.getElementById('contactNameHome');
+        const emailInput = document.getElementById('contactEmailHome');
         
-        if (nameField) nameField.value = currentUser.displayName || '';
-        if (emailField) emailField.value = currentUser.email || '';
+        if (nameInput) nameInput.value = currentUser.displayName || '';
+        if (emailInput) emailInput.value = currentUser.email || '';
     }
 }
 
 // Contact form submission - Düzeltildi
-document.addEventListener('DOMContentLoaded', function() {
-    const contactForm = document.getElementById('contactForm');
-    const contactFormHome = document.getElementById('contactFormHome');
-
-    if (contactForm) {
-        contactForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            await sendContactEmail('contactForm');
-        });
-    }
-
-    if (contactFormHome) {
-        contactFormHome.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            await sendContactEmail('contactFormHome');
-        });
-    }
-});
-
-async function sendContactEmail(formType) {
+async function sendContactMessage(formId) {
     if (!isEmailJSReady) {
         showNotification('E-posta servisi yükleniyor, lütfen bekleyin...', 'warning');
         return;
     }
 
-    const isHome = formType === 'contactFormHome';
-    const nameField = document.getElementById(isHome ? 'contactNameHome' : 'contactName');
-    const emailField = document.getElementById(isHome ? 'contactEmailHome' : 'contactEmail');
-    const subjectField = document.getElementById(isHome ? 'contactSubjectHome' : 'contactSubject');
-    const messageField = document.getElementById(isHome ? 'contactMessageHome' : 'contactMessage');
+    const form = document.getElementById(formId);
+    const nameInput = form.querySelector('[id*="contactName"]');
+    const emailInput = form.querySelector('[id*="contactEmail"]');
+    const subjectInput = form.querySelector('[id*="contactSubject"]');
+    const messageInput = form.querySelector('[id*="contactMessage"]');
 
-    const templateParams = {
-        from_name: nameField.value,
-        from_email: emailField.value,
-        subject: subjectField.value,
-        message: messageField.value,
-        to_name: 'Akıllı Liste Destek',
-        to_email: 'ebunyamin0@gmail.com'
-    };
+    const name = nameInput.value.trim();
+    const email = emailInput.value.trim();
+    const subject = subjectInput.value;
+    const message = messageInput.value.trim();
+
+    if (!name || !email || !subject || !message) {
+        showNotification('Lütfen tüm alanları doldurun!', 'warning');
+        return;
+    }
 
     try {
-        showNotification('E-posta gönderiliyor...', 'info');
-        
-        const result = await emailjs.send(
-            EMAILJS_SERVICE_ID,
-            EMAILJS_TEMPLATE_ID,
-            templateParams
-        );
+        const templateParams = {
+            from_name: name,
+            from_email: email,
+            subject: subject,
+            message: message,
+            to_email: 'ebunyamin0@gmail.com'
+        };
 
-        console.log('Email sent successfully:', result);
-        showNotification('Mesajınız başarıyla gönderildi! 📧', 'success');
+        await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams);
+        showNotification('Mesajınız gönderildi! 📧', 'success');
         
         // Clear form
-        nameField.value = '';
-        emailField.value = '';
-        subjectField.value = '';
-        messageField.value = '';
+        nameInput.value = '';
+        emailInput.value = '';
+        subjectInput.value = '';
+        messageInput.value = '';
         
-        // Refill user data if logged in
-        if (isHome) {
-            prefillContactFormHome();
-        } else {
-            prefillContactForm();
+        // Prefill user info if logged in
+        if (currentUser) {
+            nameInput.value = currentUser.displayName || '';
+            emailInput.value = currentUser.email || '';
         }
         
     } catch (error) {
-        console.error('Email send error:', error);
-        showNotification('E-posta gönderilemedi. Lütfen daha sonra tekrar deneyin.', 'error');
+        console.error('EmailJS error:', error);
+        showNotification('Mesaj gönderilemedi. Lütfen daha sonra tekrar deneyin. ✕', 'error');
     }
 }
 
-// Notification system
-function showNotification(message, type = 'info') {
-    // Remove existing notifications
-    const existing = document.querySelector('.notification');
-    if (existing) {
-        existing.remove();
+// Contact form event listeners - Düzeltildi
+document.addEventListener('DOMContentLoaded', function() {
+    // Ana iletişim formu
+    const contactForm = document.getElementById('contactForm');
+    if (contactForm) {
+        contactForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            sendContactMessage('contactForm');
+        });
     }
 
-    const notification = document.createElement('div');
-    notification.className = `notification ${type}`;
-    notification.innerHTML = `
-        <span>${message}</span>
-        <button onclick="this.parentElement.remove()" class="notification-close">✕</button>
-    `;
-
-    document.body.appendChild(notification);
-
-    // Auto remove after 5 seconds
-    setTimeout(() => {
-        if (notification.parentElement) {
-            notification.remove();
-        }
-    }, 5000);
-}
+    // Ana sayfadaki iletişim formu
+    const contactFormHome = document.getElementById('contactFormHome');
+    if (contactFormHome) {
+        contactFormHome.addEventListener('submit', function(e) {
+            e.preventDefault();
+            sendContactMessage('contactFormHome');
+        });
+    }
+});
 
 // Ad management
 function closeAd(adId) {
@@ -1189,17 +1101,185 @@ function closeAd(adId) {
     }
 }
 
-// Initialize app
+// Notification system
+function showNotification(message, type = 'info') {
+    // Remove existing notifications
+    const existingNotifications = document.querySelectorAll('.notification');
+    existingNotifications.forEach(notification => notification.remove());
+    
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
+    
+    // Style the notification
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 1rem 1.5rem;
+        border-radius: 8px;
+        color: white;
+        font-weight: 500;
+        z-index: 10000;
+        max-width: 300px;
+        animation: slideIn 0.3s ease;
+    `;
+    
+    // Set background color based on type
+    switch (type) {
+        case 'success':
+            notification.style.background = '#51cf66';
+            break;
+        case 'error':
+            notification.style.background = '#ff6b6b';
+            break;
+        case 'warning':
+            notification.style.background = '#ffd43b';
+            notification.style.color = '#333';
+            break;
+        default:
+            notification.style.background = '#4a90e2';
+    }
+    
+    document.body.appendChild(notification);
+    
+    // Auto remove after 3 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.style.animation = 'slideOut 0.3s ease';
+            setTimeout(() => notification.remove(), 300);
+        }
+    }, 3000);
+}
+
+// Add CSS animations
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+    @keyframes slideOut {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+    }
+`;
+document.head.appendChild(style);
+
+// Initialize application
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded, initializing app...');
-    
-    // Initialize theme first
     initializeTheme();
-    
-    // Initialize Firebase and EmailJS
     initializeFirebase();
     initializeEmailJS();
     
-    // Show home section by default
-    showSection('home');
+    // Check for shared list in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const sharedListId = urlParams.get('list');
+    if (sharedListId) {
+        loadSharedList(sharedListId);
+    }
 });
+
+// Load shared list
+async function loadSharedList(listId) {
+    try {
+        const doc = await db.collection('lists').doc(listId).get();
+        if (doc.exists) {
+            const listData = doc.data();
+            
+            // Show shared list content
+            showSharedListModal(listData);
+        } else {
+            showNotification('Paylaşılan liste bulunamadı!', 'error');
+        }
+    } catch (error) {
+        console.error('Error loading shared list:', error);
+        showNotification('Liste yüklenirken hata oluştu!', 'error');
+    }
+}
+
+function showSharedListModal(listData) {
+    // Create modal
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 10000;
+    `;
+    
+    const modalContent = document.createElement('div');
+    modalContent.style.cssText = `
+        background: var(--surface-color);
+        padding: 2rem;
+        border-radius: 12px;
+        max-width: 500px;
+        max-height: 80vh;
+        overflow-y: auto;
+        color: var(--text-color);
+    `;
+    
+    const typeIcons = {
+        shopping: '🛒',
+        todo: '✅',
+        laboratory: '🧪'
+    };
+    
+    let itemsHtml = '';
+    if (listData.items && listData.items.length > 0) {
+        listData.items.forEach(item => {
+            itemsHtml += `<div style="padding: 0.5rem; border-bottom: 1px solid var(--border-color);">
+                ${item.name}
+                ${item.quantity ? ` - ${item.quantity}` : ''}
+                ${item.value ? ` - ${item.value}` : ''}
+            </div>`;
+        });
+    } else {
+        itemsHtml = '<p>Liste boş</p>';
+    }
+    
+    modalContent.innerHTML = `
+        <h2>${typeIcons[listData.type]} ${listData.name}</h2>
+        <div style="margin: 1rem 0;">
+            ${itemsHtml}
+        </div>
+        <button onclick="this.closest('.modal').remove()" style="
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+        ">Kapat</button>
+    `;
+    
+    modal.className = 'modal';
+    modal.appendChild(modalContent);
+    document.body.appendChild(modal);
+    
+    // Close on outside click
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+}
