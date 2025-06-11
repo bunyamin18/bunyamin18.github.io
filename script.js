@@ -8,6 +8,11 @@ const firebaseConfig = {
     appId: "1:1020793266706:web:bdaba147c8367a50dfaecb"
 };
 
+// Toggle menu
+function toggleMenu() {
+    const navButtons = document.querySelector('.nav-buttons');
+    navButtons.classList.toggle('collapsed');
+}
 // EmailJS Configuration
 const EMAILJS_SERVICE_ID = "service_ownrnmj";
 const EMAILJS_TEMPLATE_ID = "template_yj8xnwj";
