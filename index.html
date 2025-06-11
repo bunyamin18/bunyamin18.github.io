@@ -15,11 +15,12 @@
     <div id="app">
         <!-- Navigation -->
         <nav class="navbar">
-            <div class="nav-brand">
-                <h1>📋 Akıllı Liste</h1>
-            </div>
-            <div class="nav-buttons">
-                <button class="nav-btn compact" onclick="showSection('home')">🏠 Ana Sayfa</button>
+    <div class="nav-brand">
+        <h1>📋 Akıllı Liste</h1>
+        <button class="menu-toggle" onclick="toggleMenu()" aria-label="Toggle Menu">☰</button>
+    </div>
+    <div class="nav-buttons collapsed">
+        <button class="nav-btn compact" onclick="showSection('home')">🏠 Ana Sayfa</button>
                 <button class="nav-btn compact" onclick="checkAuthAndRedirect('create-list')">➕ Liste Oluştur</button>
                 <button class="nav-btn compact" onclick="navigateToSection('guide-home')">📖 Kılavuz</button>
                 <button class="nav-btn compact" onclick="navigateToSection('contact-home')">📞 İletişim</button>
