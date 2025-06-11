@@ -18,7 +18,11 @@
             <div class="nav-brand">
                 <h1 onclick="showSection('home')" style="cursor: pointer;">📋 Akıllı Liste</h1>
             </div>
-            <div class="nav-buttons">
+            
+            <!-- Mobile Menu Toggle Button -->
+            <button class="mobile-menu-toggle" onclick="toggleMobileMenu()">☰</button>
+            
+            <div class="nav-buttons" id="navButtons">
                 <button class="nav-btn compact" onclick="showSection('home')">🏠 Ana Sayfa</button>
                 <button class="nav-btn compact" onclick="checkAuthAndRedirect('create-list')">➕ Liste Oluştur</button>
                 <button class="nav-btn compact" onclick="navigateToSection('guide-home')">📖 Kılavuz</button>
@@ -37,9 +41,6 @@
                         </div>
                     </div>
                 </div>
-
-                <!-- Mobile Menu Toggle Button -->
-                <button class="mobile-menu-toggle" onclick="toggleMobileMenu()">☰</button>
 
                 <!-- Auth Buttons -->
                 <div id="authButtons">
@@ -92,7 +93,7 @@
                 <div class="feature-card">
                     <div class="feature-icon">🧪</div>
                     <h3>Laboratuvar Listesi</h3>
-                    <p>Bilimsel malzemelerinizi listeleyin, maliyet hesaplaması yapın</p>
+                    <p>Elektronik komponentlerinizi listeleyin, değerlerini kaydedin</p>
                 </div>
             </div>
 
@@ -170,10 +171,10 @@
                                 <div class="type-guide">
                                     <h4>🧪 Laboratuvar Listesi</h4>
                                     <ul>
-                                        <li>Malzeme adı, miktar ve birim fiyat girebilirsiniz</li>
-                                        <li>Otomatik toplam maliyet hesaplaması</li>
-                                        <li>Bilimsel çalışmalar ve araştırmalar için</li>
-                                        <li>Detaylı maliyet analizi</li>
+                                        <li>Komponent adı, miktar ve değer girebilirsiniz</li>
+                                        <li>Elektronik projeler için idealdir</li>
+                                        <li>Direnç, kondansatör değerlerini kaydedin</li>
+                                        <li>Proje organizasyonu için mükemmel</li>
                                     </ul>
                                 </div>
                             </div>
@@ -258,11 +259,11 @@
                     <div class="list-type-card" onclick="selectListType('laboratory')">
                         <div class="list-type-icon">🧪</div>
                         <h3>Laboratuvar Listesi</h3>
-                        <p>Bilimsel malzemelerinizi listeleyin</p>
+                        <p>Elektronik komponentlerinizi listeleyin</p>
                         <ul>
-                            <li>• Malzeme adı ve miktarı</li>
-                            <li>• Birim fiyat bilgisi</li>
-                            <li>• Otomatik maliyet hesabı</li>
+                            <li>• Komponent adı ve miktarı</li>
+                            <li>• Değer bilgisi (Ω, V, vb.)</li>
+                            <li>• Proje organizasyonu</li>
                         </ul>
                     </div>
                 </div>
@@ -306,6 +307,18 @@
                     <h3>QR Kod ile Paylaş</h3>
                     <div id="qrCode"></div>
                     <p>Bu QR kodu taratarak listeni paylaşabilirsin!</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Shared List View Section -->
+        <div id="shared-list-section" class="section">
+            <div class="container">
+                <div id="sharedListContent">
+                    <!-- Shared list content will be loaded here -->
+                </div>
+                <div class="form-actions">
+                    <button type="button" onclick="showSection('home')" class="form-button">🏠 Ana Sayfaya Dön</button>
                 </div>
             </div>
         </div>
@@ -426,7 +439,7 @@
                         <h3>🆓 Ücretsiz</h3>
                         <div class="price">₺0<span>/ay</span></div>
                         <ul>
-                            <li>✅ 3 Liste Oluşturma</li>
+                            <li>✅ 1 Liste Oluşturma</li>
                             <li>✅ Temel Özellikler</li>
                             <li>✅ QR Kod Paylaşımı</li>
                             <li>❌ Sınırsız Liste</li>
@@ -480,30 +493,13 @@
                             <div class="form-group">
                                 <textarea id="contactMessage" placeholder="💬 Mesajınız" required class="form-textarea"></textarea>
                             </div>
-                            <button type="submit" class="form-button">📨 Mesaj Gönder</button>
+                            <button type="submit" class="form-button">📨 Gönder</button>
                         </form>
                     </div>
                 </div>
             </div>
         </div>
-
-        <!-- Footer Ad -->
-        <div class="footer-ad" id="footerAdBanner">
-            <div class="ad-content">
-                <p>💻 Dijital çözümleriniz için bize ulaşın - Profesyonel web tasarım hizmetleri</p>
-                <button class="ad-close-btn" onclick="closeAd('footerAdBanner')" title="Reklamı Kapat">✕</button>
-            </div>
-        </div>
     </div>
-
-    <!-- Loading overlay -->
-    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
-        <div class="loading-spinner"></div>
-        <p>Yükleniyor...</p>
-    </div>
-
-    <!-- Notification -->
-    <div id="notification" class="notification"></div>
 
     <script src="script.js"></script>
 </body>
