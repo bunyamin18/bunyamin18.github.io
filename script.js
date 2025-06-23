@@ -964,6 +964,48 @@ function generateQRCode(listId) {
     }
 }
 
+/**
+ * Belirtilen liste ID'siyle QR kodu oluşturur ve ilgili HTML elementine ekler.
+ * @param {string} listId - Listenin benzersiz ID'si
+ * @param {HTMLElement} qrCodeElement - QR kodun çizileceği HTML elemanı
+ * @param {HTMLElement} qrSectionElement - QR kod bölümünü içeren eleman (görünürlük için)
+ */
+function _generateQRCodeInternal(listId, qrCodeElement, qrSectionElement) {
+    if (!window.QRious) {
+        if (qrSectionElement) qrSectionElement.style.display = "none";
+        return;
+    }
+    if (!listId || !qrCodeElement) {
+        if (qrSectionElement) qrSectionElement.style.display = "none";
+        return;
+    }
+
+    // Önce eski QR kodu temizle
+    qrCodeElement.innerHTML = "";
+
+    // Paylaşılacak URL'yi oluştur
+    const shareUrl = `${window.location.origin}?list=${listId}`;
+
+    // QR kodu oluştur
+    const qr = new QRious({
+        value: shareUrl,
+        size: 180,
+        background: 'white',
+        foreground: '#222',
+        level: 'H'
+    });
+
+    // QR kodu ekle
+    const img = document.createElement('img');
+    img.src = qr.toDataURL();
+    img.alt = "QR Kod";
+    img.style.width = "180px";
+    img.style.height = "180px";
+    qrCodeElement.appendChild(img);
+
+    if (qrSectionElement) qrSectionElement.style.display = "block";
+}
+
 // Load user lists
 async function loadUserLists() {
     if (!isFirebaseReady || !currentUser || !db) {
