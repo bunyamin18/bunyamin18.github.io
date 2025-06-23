@@ -1065,9 +1065,22 @@ function displayLists(lists) {
     myListsContainer.innerHTML = html;
 }
 
-function viewList(listId) {
-    // Implement view list functionality
-    showNotification('Liste görüntüleme özelliği yakında eklenecek!', 'info');
+async function viewList(listId) {
+    if (!db || !listId) return;
+
+    try {
+        const doc = await db.collection('lists').doc(listId).get();
+
+        if (doc.exists) {
+            const listData = { id: listId, ...doc.data() };
+            showSharedListModal(listData); // Mevcut modal yapısını yeniden kullanıyoruz.
+        } else {
+            showNotification('Liste bulunamadı!', 'error');
+        }
+    } catch (error) {
+        console.error('Liste görüntülenirken hata:', error);
+        showNotification('Liste yüklenemedi: ' + error.message, 'error');
+    }
 }
 
 async function editList(listId) {
@@ -1081,22 +1094,40 @@ async function editList(listId) {
             const listData = doc.data();
             
             // Load the list data into the form
-            currentListId = listId;
-            currentListType = listData.type;
-            currentItems = listData.items || [];
-            
-            // Navigate to edit mode
-            selectListType(listData.type);
-            
-            // Fill the form
-            setTimeout(() => {
-                const listNameInput = document.getElementById('listName');
-                if (listNameInput) {
-                    listNameInput.value = listData.name;
+            currentListId = listId; // Düzenlenen listenin ID'sini ayarla
+            currentListType = listData.type; // Listenin türünü ayarla
+            currentItems = listData.items || []; // Mevcut öğeleri yükle
+
+            // Liste türüne göre oluşturma/düzenleme bölümünün yapısını kur
+            // Bu, doğru input alanlarını render edecek ve renderItems() fonksiyonunu çağıracak
+            setupCreateListSection(currentListType);
+
+            // Liste adı inputunu doldur
+            const listNameInput = document.getElementById('listName');
+            if (listNameInput) {
+                listNameInput.value = listData.name;
+            }
+
+            // Liste görseli önizlemesini doldur (eğer görsel varsa)
+            const imagePreview = document.getElementById('imagePreview');
+            const listImageInput = document.getElementById('listImage');
+            if (imagePreview) {
+                if (listData.image) {
+                    imagePreview.innerHTML = `
+                        <div class="image-preview-container">
+                            <img src="${listData.image}" alt="Liste Resmi" class="preview-image">
+                            <button type="button" onclick="clearListImage()" class="remove-image-btn">❌</button>
+                        </div>
+                    `;
+                } else {
+                    imagePreview.innerHTML = ''; // Önceki önizlemeyi temizle
                 }
-            }, 200);
-            
-            showNotification('Liste düzenleme moduna geçildi!', 'info');
+                if (listImageInput) listImageInput.value = ''; // Dosya input değerini temizle
+            }
+
+            // create-list bölümünü göster (artık düzenleme modunda)
+            showSection('create-list');
+            showNotification('Liste düzenleme moduna geçildi! ✏️', 'info');
         }
     } catch (error) {
         console.error('Liste yüklenirken hata:', error);
@@ -1244,6 +1275,7 @@ function showSharedListModal(listData) {
     // Show modal
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
+    _generateQRCodeInternal(listData.id, document.getElementById('sharedListQrCode'), document.getElementById('sharedListQrSection'));
 }
 
 function renderSharedListItems(items, listType) {
@@ -1308,10 +1340,12 @@ function closeSharedListModal() {
         modal.style.display = 'none';
         document.body.style.overflow = '';
         
-        // Clear URL parameter
+        // URL'de 'list' parametresi varsa temizle (paylaşılan listeler için)
         const url = new URL(window.location);
-        url.searchParams.delete('list');
-        window.history.replaceState({}, '', url);
+        if (url.searchParams.has('list')) {
+            url.searchParams.delete('list');
+            window.history.replaceState({}, '', url);
+        }
     }
 }
 
